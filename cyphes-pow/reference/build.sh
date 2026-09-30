@@ -1,7 +1,10 @@
 #!/bin/sh
-# Builds the Beam reference harness. BEAM_SRC points at a BeamMW/beam checkout.
+# Builds the Beam reference harness.
+#
+#   git clone https://github.com/BeamMW/beam
+#   BEAM_SRC=/path/to/beam ./build.sh [output]
 set -eu
-BEAM_SRC="${BEAM_SRC:-$HOME/Desktop/CYPHES/upstream/beam}"
+: "${BEAM_SRC:?set BEAM_SRC to a BeamMW/beam checkout}"
 OUT="${1:-$(dirname "$0")/beam3ref}"
 C="$BEAM_SRC/3rdparty/crypto"
 cc -O3 -c "$C/blake/ref/blake2b-ref.c" -I"$C/blake/ref" -o "${OUT}.blake2b.o"

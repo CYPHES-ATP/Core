@@ -75,9 +75,9 @@ pub struct Config {
     ///
     /// |Platform | Value                                           | Example                              |
     /// | ------- | ----------------------------------------------- | ------------------------------------ |
-    /// | Linux   | `$XDG_CACHE_HOME/zebra` or `$HOME/.cache/zebra` | `/home/alice/.cache/zebra`           |
-    /// | macOS   | `$HOME/Library/Caches/zebra`                    | `/Users/Alice/Library/Caches/zebra`  |
-    /// | Windows | `{FOLDERID_LocalAppData}\zebra`                 | `C:\Users\Alice\AppData\Local\zebra` |
+    /// | Linux   | `$XDG_CACHE_HOME/cyphes` or `$HOME/.cache/cyphes` | `/home/alice/.cache/cyphes` |
+    /// | macOS   | `$HOME/Library/Caches/cyphes`                   | `/Users/Alice/Library/Caches/cyphes` |
+    /// | Windows | `{FOLDERID_LocalAppData}\cyphes` | `C:\Users\Alice\AppData\Local\cyphes` |
     /// | Other   | `std::env::current_dir()/cache/zebra`           | `/cache/zebra`                       |
     ///
     /// # Security
