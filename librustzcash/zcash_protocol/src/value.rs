@@ -13,13 +13,15 @@ use std::error;
 use memuse::DynamicUsage;
 
 pub const COIN: u64 = 1_0000_0000;
-pub const MAX_MONEY: u64 = 21_000_000 * COIN;
+/// CYPHES: 10 billion CASH, the cap on total issuance
+/// (`cyphes_params::MAX_MONEY`). Zcash's is 21 million.
+pub const MAX_MONEY: u64 = 10_000_000_000 * COIN;
 pub const MAX_BALANCE: i64 = MAX_MONEY as i64;
 
 /// A type-safe representation of a Zcash value delta, in zatoshis.
 ///
 /// An ZatBalance can only be constructed from an integer that is within the valid monetary
-/// range of `{-MAX_MONEY..MAX_MONEY}` (where `MAX_MONEY` = 21,000,000 × 10⁸ zatoshis),
+/// range of `{-MAX_MONEY..MAX_MONEY}` (where `MAX_MONEY` = 10,000,000,000 × 10⁸ base units),
 /// and this is preserved as an invariant internally. (A [`Transaction`] containing serialized
 /// invalid ZatBalances would also be rejected by the network consensus rules.)
 ///
@@ -583,9 +585,23 @@ pub mod testing {
 
 #[cfg(test)]
 mod tests {
-    use crate::value::MAX_BALANCE;
+    use crate::value::{COIN, MAX_BALANCE, MAX_MONEY, Zatoshis};
 
     use super::ZatBalance;
+
+    #[test]
+    fn cyphes_amounts_above_21_million_are_valid() {
+        // CYPHES: 10 billion CASH cap. Zcash's 21 million would make ordinary
+        // CYPHES balances unrepresentable.
+        let fifty_million = 50_000_000 * COIN;
+        assert!(Zatoshis::from_u64(fifty_million).is_ok());
+        assert!(ZatBalance::from_i64(-(fifty_million as i64)).is_ok());
+        assert_eq!(MAX_MONEY, 10_000_000_000 * COIN);
+        assert!(Zatoshis::from_u64(MAX_MONEY).is_ok());
+        assert!(Zatoshis::from_u64(MAX_MONEY + 1).is_err());
+        // Sums of two maximal balances still fit in i64.
+        assert!((MAX_BALANCE as i128) * 2 < i64::MAX as i128);
+    }
 
     #[test]
     fn amount_in_range() {
@@ -605,7 +621,7 @@ mod tests {
             ZatBalance(-1)
         );
 
-        let max_money = b"\x00\x40\x07\x5a\xf0\x75\x07\x00";
+        let max_money = &(MAX_MONEY as i64).to_le_bytes();
         assert_eq!(
             ZatBalance::from_u64_le_bytes(*max_money).unwrap(),
             ZatBalance(MAX_BALANCE)
@@ -619,12 +635,12 @@ mod tests {
             ZatBalance(MAX_BALANCE)
         );
 
-        let max_money_p1 = b"\x01\x40\x07\x5a\xf0\x75\x07\x00";
+        let max_money_p1 = &(MAX_MONEY as i64 + 1).to_le_bytes();
         assert!(ZatBalance::from_u64_le_bytes(*max_money_p1).is_err());
         assert!(ZatBalance::from_nonnegative_i64_le_bytes(*max_money_p1).is_err());
         assert!(ZatBalance::from_i64_le_bytes(*max_money_p1).is_err());
 
-        let neg_max_money = b"\x00\xc0\xf8\xa5\x0f\x8a\xf8\xff";
+        let neg_max_money = &(-(MAX_MONEY as i64)).to_le_bytes();
         assert!(ZatBalance::from_u64_le_bytes(*neg_max_money).is_err());
         assert!(ZatBalance::from_nonnegative_i64_le_bytes(*neg_max_money).is_err());
         assert_eq!(
@@ -632,7 +648,7 @@ mod tests {
             ZatBalance(-MAX_BALANCE)
         );
 
-        let neg_max_money_m1 = b"\xff\xbf\xf8\xa5\x0f\x8a\xf8\xff";
+        let neg_max_money_m1 = &(-(MAX_MONEY as i64) - 1).to_le_bytes();
         assert!(ZatBalance::from_u64_le_bytes(*neg_max_money_m1).is_err());
         assert!(ZatBalance::from_nonnegative_i64_le_bytes(*neg_max_money_m1).is_err());
         assert!(ZatBalance::from_i64_le_bytes(*neg_max_money_m1).is_err());
