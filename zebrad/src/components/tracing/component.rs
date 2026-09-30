@@ -398,7 +398,7 @@ impl Tracing {
             info!(?progress_bar_config, "activated progress bars");
         } else {
             info!(
-                "set 'tracing.progress_bar =\"summary\"' in zebrad.toml to activate progress bars"
+                "set 'tracing.progress_bar =\"summary\"' in cyphes.toml to activate progress bars"
             );
         }
 

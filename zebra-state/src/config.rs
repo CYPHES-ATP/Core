@@ -194,7 +194,7 @@ impl Config {
         let net_dir = network.lowercase_name();
 
         if self.ephemeral {
-            gen_temp_path(&format!("zebra-{db_kind}-{major_version}-{net_dir}-"))
+            gen_temp_path(&format!("cyphes-{db_kind}-{major_version}-{net_dir}-"))
         } else {
             self.cache_dir
                 .join(db_kind)
@@ -622,5 +622,64 @@ mod tests {
         };
 
         assert!(!format!("{config:?}").contains("hunter2"));
+    }
+}
+
+#[cfg(test)]
+mod cyphes_isolation_tests {
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    fn default_paths_never_touch_zebra_data() {
+        let _init_guard = zebra_test::init();
+
+        let os_cache = dirs::cache_dir().expect("test machine has a cache dir");
+        let zebra_root = os_cache.join("zebra");
+        let config = Config::default();
+        assert_eq!(config.cache_dir, os_cache.join("cyphes"));
+
+        for network in [
+            Network::Mainnet,
+            Network::new_default_testnet(),
+            Network::new_regtest(Default::default()),
+        ] {
+            let path = config.db_path("state", 1, &network);
+            assert!(path.starts_with(os_cache.join("cyphes")), "{path:?}");
+            assert!(!path.starts_with(&zebra_root), "{path:?}");
+        }
+    }
+
+    #[test]
+    fn old_database_cleanup_leaves_a_zcash_node_alone() {
+        let _init_guard = zebra_test::init();
+
+        // A Zcash Zebra node's state and a CYPHES node's state side by side,
+        // both with an outdated database version that cleanup would delete.
+        let root = tempfile::tempdir().expect("temp dir");
+        let zcash_old = root.path().join("zebra/state/v1/mainnet");
+        let cyphes_old = root.path().join("cyphes/state/v1/mainnet");
+        for dir in [&zcash_old, &cyphes_old] {
+            fs::create_dir_all(dir).expect("create state dir");
+            fs::write(dir.join("SENTINEL"), b"data").expect("write sentinel");
+        }
+
+        let config = Config {
+            cache_dir: root.path().join("cyphes"),
+            ephemeral: false,
+            delete_old_database: true,
+            ..Config::default()
+        };
+        delete_old_databases(config, "state".to_string(), 2, &Network::Mainnet);
+
+        assert!(
+            !cyphes_old.exists(),
+            "the CYPHES node deletes its own old database"
+        );
+        assert!(
+            zcash_old.join("SENTINEL").exists(),
+            "the Zcash node's database is untouched"
+        );
     }
 }

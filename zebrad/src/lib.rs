@@ -49,10 +49,10 @@
 //!
 //! ## Configuration
 //!
-//! The command below places the generated `zebrad.toml` config file in the default preferences directory of Linux:
+//! The command below places the generated `cyphes.toml` config file in the default preferences directory of Linux:
 //!
 //! ```console
-//! zebrad generate -o ~/.config/zebrad.toml
+//! zebrad generate -o ~/.config/cyphes.toml
 //! ```
 //!
 //! See [`config::ZebradConfig`] for other OSes default locations or more information about how to configure Zebra.

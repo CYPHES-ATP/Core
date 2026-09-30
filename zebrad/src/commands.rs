@@ -24,8 +24,10 @@ mod tests;
 
 use ZebradCmd::*;
 
-/// Zebrad Configuration Filename
-pub const CONFIG_FILE: &str = "zebrad.toml";
+/// The CYPHES node configuration filename.
+///
+/// Not `zebrad.toml`: a CYPHES node must never load a Zcash node's config.
+pub const CONFIG_FILE: &str = "cyphes.toml";
 
 /// Zebrad Subcommands
 #[derive(Command, Debug, clap::Subcommand)]
@@ -34,7 +36,7 @@ pub enum ZebradCmd {
     // TODO: hide this command from users in release builds (#3279)
     CopyState(CopyStateCmd),
 
-    /// Generate a default `zebrad.toml` configuration
+    /// Generate a default `cyphes.toml` configuration
     Generate(GenerateCmd),
 
     /// Start the application (default command)

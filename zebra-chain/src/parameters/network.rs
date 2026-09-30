@@ -221,18 +221,11 @@ impl Network {
 
     /// Returns true if the maximum block time rule is active for `network` and `height`.
     ///
-    /// Always returns true if `network` is the Mainnet.
-    /// If `network` is the Testnet, the `height` should be at least
-    /// TESTNET_MAX_TIME_START_HEIGHT to return true.
-    /// Returns false otherwise.
-    ///
-    /// Part of the consensus rules at <https://zips.z.cash/protocol/protocol.pdf#blockheader>
-    pub fn is_max_block_time_enforced(&self, height: block::Height) -> bool {
-        match self {
-            Network::Mainnet => true,
-            // TODO: Move `TESTNET_MAX_TIME_START_HEIGHT` to a field on testnet::Parameters (#8364)
-            Network::Testnet(_params) => height >= super::TESTNET_MAX_TIME_START_HEIGHT,
-        }
+    /// CYPHES enforces it from genesis on every network. (Zcash's testnet only
+    /// enforced it from height 653,606; LWMA trusts timestamps, so CYPHES
+    /// cannot leave it off.)
+    pub fn is_max_block_time_enforced(&self, _height: block::Height) -> bool {
+        true
     }
 
     /// Get the default port associated to this network.

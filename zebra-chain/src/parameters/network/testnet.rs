@@ -1044,7 +1044,9 @@ impl Parameters {
                     .to_expanded()
                     .expect("difficulty limits are valid expanded values"),
             )?
-            .with_disable_pow(true)
+            // CYPHES regtest validates BeamHash III like every other network, so a
+            // devnet proves invalid solutions are rejected. Its target is easy.
+            .with_disable_pow(false)
             .with_unshielded_coinbase_spends(
                 should_allow_unshielded_coinbase_spends.unwrap_or(true),
             )

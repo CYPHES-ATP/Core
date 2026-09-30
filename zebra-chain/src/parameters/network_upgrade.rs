@@ -247,12 +247,6 @@ const TESTNET_MINIMUM_DIFFICULTY_GAP_MULTIPLIER: i32 = 6;
 /// Based on <https://zips.z.cash/zip-0208#minimum-difficulty-blocks-on-the-test-network>
 const TESTNET_MINIMUM_DIFFICULTY_START_HEIGHT: block::Height = block::Height(299_188);
 
-/// The activation height for the block maximum time rule on Testnet.
-///
-/// Part of the block header consensus rules in the Zcash specification at
-/// <https://zips.z.cash/protocol/protocol.pdf#blockheader>
-pub const TESTNET_MAX_TIME_START_HEIGHT: block::Height = block::Height(653_606);
-
 impl Network {
     /// Returns a map between activation heights and network upgrades for `network`,
     /// in ascending height order.

@@ -1,10 +1,10 @@
-//! `generate` subcommand - generates a default `zebrad.toml` config.
+//! `generate` subcommand - generates a default `cyphes.toml` config.
 
 use crate::config::ZebradConfig;
 use abscissa_core::{Command, Runnable};
 use clap::Parser;
 
-/// Generate a default `zebrad.toml` configuration
+/// Generate a default `cyphes.toml` configuration
 #[derive(Command, Debug, Default, Parser)]
 pub struct GenerateCmd {
     /// The file to write the generated config to.
@@ -61,9 +61,9 @@ impl Runnable for GenerateCmd {
 #
 # | Platform | Value                                 | Example                                        |
 # | -------- | ------------------------------------- | ---------------------------------------------- |
-# | Linux    | `$XDG_CONFIG_HOME` or `$HOME/.config` | `/home/alice/.config/zebrad.toml`              |
-# | macOS    | `$HOME/Library/Preferences`           | `/Users/Alice/Library/Preferences/zebrad.toml` |
-# | Windows  | `{FOLDERID_RoamingAppData}`           | `C:\Users\Alice\AppData\Local\zebrad.toml`     |
+# | Linux    | `$XDG_CONFIG_HOME` or `$HOME/.config` | `/home/alice/.config/cyphes.toml`              |
+# | macOS    | `$HOME/Library/Preferences`           | `/Users/Alice/Library/Preferences/cyphes.toml` |
+# | Windows  | `{FOLDERID_RoamingAppData}`           | `C:\Users\Alice\AppData\Local\cyphes.toml`     |
 
 "
         .to_owned();

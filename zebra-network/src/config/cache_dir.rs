@@ -79,3 +79,20 @@ impl Default for CacheDir {
         Self::default_path()
     }
 }
+
+#[cfg(test)]
+mod cyphes_isolation_tests {
+    use super::*;
+
+    #[test]
+    fn default_peer_cache_is_not_zebras() {
+        let os_cache = dirs::cache_dir().expect("test machine has a cache dir");
+        for network in [Network::Mainnet, Network::new_default_testnet()] {
+            let path = CacheDir::default()
+                .peer_cache_file_path(&network)
+                .expect("peer cache is enabled by default");
+            assert!(path.starts_with(os_cache.join("cyphes")), "{path:?}");
+            assert!(!path.starts_with(os_cache.join("zebra")), "{path:?}");
+        }
+    }
+}

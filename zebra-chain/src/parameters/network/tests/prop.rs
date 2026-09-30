@@ -1,10 +1,7 @@
 use proptest::prelude::*;
 
 use super::super::Network;
-use crate::{
-    block::Height,
-    parameters::{NetworkUpgrade, TESTNET_MAX_TIME_START_HEIGHT},
-};
+use crate::{block::Height, parameters::NetworkUpgrade};
 
 proptest! {
     /// Check that the mandatory checkpoint is immediately before Canopy activation.
@@ -21,12 +18,12 @@ proptest! {
         assert!(network.mandatory_checkpoint_height() >= pre_canopy_activation);
     }
     #[test]
-    /// Asserts that the activation height is correct for the block
-    /// maximum time rule on Testnet is correct.
+    /// The maximum block time rule is enforced from genesis on every network.
     fn max_block_times_correct_enforcement(height in any::<Height>()) {
         let _init_guard = zebra_test::init();
 
         assert!(Network::Mainnet.is_max_block_time_enforced(height));
-        assert_eq!(Network::new_default_testnet().is_max_block_time_enforced(height), TESTNET_MAX_TIME_START_HEIGHT <= height);
+        assert!(Network::new_default_testnet().is_max_block_time_enforced(height));
+        assert!(Network::new_regtest(Default::default()).is_max_block_time_enforced(height));
     }
 }

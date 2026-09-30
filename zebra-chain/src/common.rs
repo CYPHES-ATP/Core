@@ -10,11 +10,17 @@ use std::{
 use tempfile::PersistError;
 
 /// Returns Zebra's default cache directory path.
+///
+/// CYPHES data lives under `cyphes`, never under Zebra's `zebra`, so a machine
+/// that also runs a Zcash node never shares state, peer caches or cookies.
 pub fn default_cache_dir() -> PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(|| std::env::current_dir().unwrap().join("cache"))
-        .join("zebra")
+        .join(CACHE_DIR_NAME)
 }
+
+/// The name of the CYPHES data directory inside the OS cache directory.
+pub const CACHE_DIR_NAME: &str = "cyphes";
 
 /// Accepts a target file path and a byte-slice.
 ///
