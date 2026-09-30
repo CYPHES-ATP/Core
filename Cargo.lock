@@ -7531,6 +7531,7 @@ dependencies = [
  "chrono",
  "color-eyre",
  "crossbeam-channel",
+ "cyphes-params",
  "derive-getters",
  "derive-new",
  "dirs",

@@ -44,6 +44,19 @@ pub const TOTAL_ISSUANCE: u64 = 999_999_899_925_000_000;
 const _: () = assert!(TOTAL_ISSUANCE < MAX_MONEY);
 const _: () = assert!(2 * MAX_MONEY < i64::MAX as u64);
 
+/// How far ahead of a node's clock a block's time may be (node policy).
+///
+/// LWMA trusts timestamps, so this bounds how much a miner can ease the
+/// difficulty by writing future times. zawy12 recommends about
+/// `LWMA_WINDOW * TARGET_SPACING_SECS / 20` = 150 s; 180 s leaves room for
+/// clock skew. Zcash uses 2 hours.
+pub const FUTURE_TIME_LIMIT_SECS: i64 = 180;
+
+/// How far a block's time may be after the median of the previous 11 block
+/// times (consensus). Zcash uses 90 minutes; with 25-second blocks the median
+/// lags the tip by about 2.5 minutes.
+pub const MAX_TIME_SINCE_MEDIAN_SECS: i64 = 600;
+
 /// Blocks before a coinbase output may be spent.
 pub const COINBASE_MATURITY: u32 = 100;
 

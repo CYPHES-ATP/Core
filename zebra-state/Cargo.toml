@@ -42,6 +42,7 @@ elasticsearch = [
 ]
 
 [dependencies]
+cyphes-params = { path = "../cyphes-params" }
 bincode = { workspace = true }
 chrono = { workspace = true, features = ["clock", "std"] }
 dirs = { workspace = true }

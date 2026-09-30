@@ -89,7 +89,7 @@ pub struct Header {
 #[allow(missing_docs)]
 #[derive(Error, Debug)]
 pub enum BlockTimeError {
-    #[error("invalid time {0:?} in block header {1:?} {2:?}: block time is more than 2 hours in the future ({3:?}). Hint: check your machine's date, time, and time zone.")]
+    #[error("invalid time {0:?} in block header {1:?} {2:?}: block time is more than 3 minutes in the future ({3:?}). Hint: check your machine's date, time, and time zone.")]
     InvalidBlockTime(
         DateTime<Utc>,
         crate::block::Height,
@@ -108,17 +108,19 @@ impl Header {
         height: &Height,
         hash: &Hash,
     ) -> Result<(), BlockTimeError> {
-        let two_hours_in_the_future = now
-            .checked_add_signed(Duration::hours(2))
-            .expect("calculating 2 hours in the future does not overflow");
-        if self.time <= two_hours_in_the_future {
+        // CYPHES: LWMA trusts timestamps, so the future time limit is 3 minutes,
+        // not Zcash's 2 hours. See `cyphes_params::FUTURE_TIME_LIMIT_SECS`.
+        let future_time_limit = now
+            .checked_add_signed(Duration::seconds(cyphes_params::FUTURE_TIME_LIMIT_SECS))
+            .expect("calculating the future time limit does not overflow");
+        if self.time <= future_time_limit {
             Ok(())
         } else {
             Err(BlockTimeError::InvalidBlockTime(
                 self.time,
                 *height,
                 *hash,
-                two_hours_in_the_future,
+                future_time_limit,
             ))?
         }
     }
