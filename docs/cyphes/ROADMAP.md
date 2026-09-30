@@ -26,34 +26,36 @@ building GPU mining on it, and prove both before putting it in the desktop app.
   CYPHES branch ID `0x4535c5e0`, activation heights, address prefixes
   (`cyph1…`) and coin type, pinned to `cyphes-params` by a consistency test.
 
-A regtest devnet mines BeamHash III blocks whose coinbase pays 1,000 CASH to
-an Ironwood output, with every other pool at zero.
+- CYPHES block vectors mined under the fork; the devnet mines to a
+  `cyphregtest1…` address.
+- `cyphes-wallet`: a CASH wallet library and CLI on `zcash_client_backend`
+  0.24 and `zcash_client_sqlite` 0.22 (see `cyphes-wallet/README.md`).
+- **The CLI money cycle is proven** by `cyphes-wallet/tests/money_cycle.rs`
+  against real nodes, every block mined with BeamHash III: mine and receive
+  under the 100-confirmation coinbase policy; corrupted proof of work
+  rejected by the node; spend with exact reconciliation; restore from seed;
+  a two-node reorganisation with an orphaned payment and an unknown-anchor
+  rejection; double spend and broken value conservation rejected; a mined
+  22,000,000 CASH note received and spent. `tests/large_value_fixture.rs`
+  adds a synthetic 9,999,000,000 CASH Ironwood note, proven and verified.
+- Node durability: the non-finalized block backup is written on every
+  commit, so a restarted node keeps its newest blocks.
 
-## 1. Parameters and storage: finish and prove
+## 1. Remaining parameter and test work
 
-- Regenerate the CYPHES block vectors under the new branch ID and prefixes.
-- A node-level negative test: `submitblock` with a corrupted BeamHash III
-  solution is rejected, on regtest (which now validates proof of work).
-- Replace the devnet's Zcash-encoded miner address with a `cyphregtest1…`
-  address.
 - Rewrite the Zebra tests that assert Zcash parameters, and delete the ones
   for removed features (`TESTS-PENDING-VECTORS.md`).
 - A fresh full workspace build and Clippy run.
+- Wallet: `zip321` payment URIs still use the `zcash:` scheme.
 
-## 2. Prove a CLI money cycle
+## 2. Money cycle follow-ups
 
-A command-line wallet (`cyphes-wallet`) on `zcash_client_backend` and
-`zcash_client_sqlite` (features `orchard`, `lightwalletd-tonic`; not
-`transparent-inputs`), using the fork, syncing from the node's
-lightwalletd-compatible gRPC server. Prove, on a local chain:
-
-- mine to the wallet, then receive, wait out the wallet's coinbase policy
-  (100 confirmations), and spend;
-- restore from the seed and rescan to the same balance and history;
-- an amount above 21 million CASH in one note;
-- invalid spends rejected: double spend, wrong anchor, overspend;
-- a reorganisation that orphans a received payment, and the wallet's
-  recovery from it.
+- Run `money_cycle` in CI on every change to the node, the fork or the
+  wallet (it needs about 40 minutes and 10 GiB).
+- Zebra retries transactions submitted over RPC. A transaction rejected for
+  an unknown anchor can therefore confirm later, if a reorganisation makes
+  that anchor known. The harness observed this; it is correct, but wallets
+  should expect it.
 
 ## 3. GPU mining
 

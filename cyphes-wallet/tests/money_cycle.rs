@@ -556,6 +556,32 @@ fn money_cycle() {
         ),
     );
 
+    // Proof of work, checked by the node itself.
+    report.section("1b. Proof of work at the node");
+    let tip = node1.height();
+    let tip_hash = node1.tip_hash();
+    let block_hex = node1.rpc("getblock", json!([tip.to_string(), 0]));
+    let block = hex::decode(block_hex.as_str().expect("block hex")).expect("hex");
+    // Header: 108 bytes of fields, the 8-byte nonce, then the 104-byte solution.
+    for (what, at) in [
+        ("one bit of its BeamHash III solution", 150),
+        ("one bit of its nonce", 110),
+    ] {
+        let mut mutated = block.clone();
+        mutated[at] ^= 1;
+        let response = node1.rpc("submitblock", json!([hex::encode(&mutated)]));
+        report.check(
+            response == json!("rejected"),
+            format!("a copy of block {tip} with {what} flipped is rejected ({response})"),
+        );
+    }
+    let response = node1.rpc("submitblock", json!([block_hex]));
+    report.check(
+        response == json!("duplicate"),
+        format!("the unmodified block is already on the chain ({response})"),
+    );
+    report.check(node1.tip_hash() == tip_hash, "the chain tip is unchanged");
+
     // 2. Spend.
     report.section("2. Spend");
     let (pay_txid, fee, _) = a.send(&b_addr, "1500", &[]).expect("Alice pays Bob");
