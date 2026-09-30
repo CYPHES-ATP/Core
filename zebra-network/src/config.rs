@@ -549,30 +549,16 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Config {
-        let mainnet_peers = [
-            "dnsseed.str4d.xyz:8233",
-            "dnsseed.z.cash:8233",
-            "mainnet.seeder.shieldedinfra.net:8233",
-            "mainnet.seeder.zfnd.org:8233",
-            "seeder.zec.rocks:8233",
-        ]
-        .iter()
-        .map(|&s| String::from(s))
-        .collect();
-
-        let testnet_peers = [
-            "dnsseed.testnet.z.cash:18233",
-            "seeder.testnet.zec.rocks:18233",
-            "testnet.seeder.zfnd.org:18233",
-        ]
-        .iter()
-        .map(|&s| String::from(s))
-        .collect();
+        // CYPHES has no public seeders yet. Never default to Zcash's: CYPHES
+        // nodes must not announce themselves to Zcash infrastructure.
+        let mainnet_peers = IndexSet::new();
+        let testnet_peers = IndexSet::new();
 
         Config {
-            listen_addr: "[::]:8233"
-                .parse()
-                .expect("Hardcoded address should be parseable"),
+            listen_addr: std::net::SocketAddr::from((
+                std::net::Ipv6Addr::UNSPECIFIED,
+                cyphes_params::network::MAINNET.default_p2p_port,
+            )),
             external_addr: None,
             network: Network::Mainnet,
             initial_mainnet_peers: mainnet_peers,

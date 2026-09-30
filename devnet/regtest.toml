@@ -1,0 +1,29 @@
+# CYPHES devnet: regtest, local only, internal BeamHash III miner.
+#
+#   cargo build -p zebrad --features internal-miner
+#   ./target/debug/zebrad -c devnet/regtest.toml start
+#
+# The reference CPU solver uses every core and about 8 GiB of RAM.
+
+[mining]
+internal_miner = true
+# Orchard-only unified address (Zcash regtest encoding until CYPHES HRPs land
+# in the librustzcash fork). Rewards become Ironwood coinbase outputs.
+miner_address = "uregtest1pszqlgxaf5w8mu2yd9uygg8cswp0ec4f7eejqnqc35tztw4tk0sxnt3pym2f3s2872cy2ruuc5n8y9cen5q6ngzlmzu8ztrjesv8zm9j"
+
+[network]
+network = "Regtest"
+listen_addr = "127.0.0.1:22974"
+initial_mainnet_peers = []
+initial_testnet_peers = []
+cache_dir = false
+
+[rpc]
+listen_addr = "127.0.0.1:22975"
+enable_cookie_auth = false
+
+[state]
+ephemeral = true
+
+[tracing]
+use_color = false

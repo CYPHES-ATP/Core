@@ -7392,6 +7392,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "chrono",
+ "cyphes-params",
  "dirs",
  "futures",
  "hex",

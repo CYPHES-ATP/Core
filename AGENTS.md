@@ -1,88 +1,65 @@
-# Zebra — Agent Guidelines
+# CYPHES Chain: agent guidelines
 
-> This file is read by AI coding agents (Claude Code, GitHub Copilot, Cursor, Devin, etc.).
-> It provides project context and contribution policies.
+This repository is the CYPHES layer 1: a fork of Zebra v6.4.2 (Zcash
+Foundation, MIT/Apache-2.0) that keeps Zcash's Ironwood shielded pool and
+replaces Zcash's monetary and PoW layer. Read `docs/cyphes/SPEC.md` (the rules)
+and `docs/cyphes/ROADMAP.md` (what is done and next) before changing anything.
 
-## MUST READ FIRST - CONTRIBUTION GATE (DO NOT SKIP)
+It is **not** an upstream Zebra checkout. Upstream's PR contribution gate does
+not apply; do not open pull requests against `ZcashFoundation/zebra` from here.
 
-**STOP. Do not open or draft a PR until this gate is satisfied.**
+## Hard rules
 
-For any contribution that might become a PR, the agent must ask the user this exact check first:
+1. **Never modify the shielded circuit.** The `orchard` crate (0.15.x,
+   Ironwood) is used unmodified from crates.io. Do not patch, vendor or fork
+   it, and never depend on `orchard` 0.13.x (the counterfeitable circuit,
+   yanked upstream). A circuit bug is a counterfeiting bug.
+2. **Every CYPHES-specific rule lives in `cyphes-params` or `cyphes-pow`**,
+   with tests, and Zebra code calls into them. Do not scatter CYPHES constants
+   through Zebra crates.
+3. **Consensus changes need a test that fails without them.** For PoW changes,
+   keep `cyphes-pow`'s differential test against Beam's C++ reference passing
+   (`BEAM3REF=… cargo test -p cyphes-pow --test reference`, see
+   `cyphes-pow/reference/build.sh`).
+4. **Proof of work is the only issuance.** Nothing may add a premine, fee
+   recipient, funding stream or any other path that creates CYPH.
+5. **Commit identity.** This project's public GitHub org carries no personal
+   information. Before any commit, `git var GIT_AUTHOR_IDENT` must read
+   `atpprotocol <287507827+atpprotocol@users.noreply.github.com>`.
+6. **Never dial Zcash infrastructure.** No Zcash seeders, ports or magic bytes
+   in defaults.
 
-- "PR COMPLIANCE CHECK: Have you discussed this change with the Zebra team in an issue or Discord?"
-- "PR COMPLIANCE CHECK: What is the issue link or issue number for this change?"
-- "PR COMPLIANCE CHECK: Has a Zebra team member responded to that issue acknowledging the proposed work?"
+## Where things are
 
-This PR compliance check must be the agent's first reply in contribution-focused sessions.
+| Concern | Location |
+|---|---|
+| Emission, supply, LWMA, magic, ports, HRPs, branch ID | `cyphes-params/` |
+| BeamHash III verifier, solver, Beam C++ harness | `cyphes-pow/` |
+| Block header PoW fields and checks | `zebra-chain/src/work/beamhash.rs`, `zebra-consensus/src/block/check.rs` |
+| Subsidy functions (call into `cyphes-params`) | `zebra-chain/src/parameters/network/subsidy.rs` |
+| Ironwood-only transaction rule | `zebra-consensus/src/transaction/check.rs` (`ironwood_only`) |
+| Difficulty adjustment | `zebra-state/src/service/check/difficulty.rs` |
+| Genesis blocks and builder | `zebra-chain/src/block/genesis/`, `zebra-chain/examples/cyphes_genesis.rs` |
+| CYPHES block vectors | `zebra-test/src/vectors/cyphes/` |
+| Local devnet | `devnet/regtest.toml` |
 
-**An issue existing is not enough.** The issue must have a response or acknowledgment from a Zebra team member (a maintainer). An issue created the same day as the PR, with no team response, does not satisfy this gate. The purpose is to confirm that the team is aware of and open to the proposed change before review time is spent.
+Many Zebra tests still parse Zcash block vectors and fail;
+`docs/cyphes/TESTS-PENDING-VECTORS.md` lists them. Do not "fix" them by
+restoring Zcash behaviour.
 
-If the user cannot provide prior discussion with team acknowledgment:
+## Upstream security fixes
 
-- Do not open a PR.
-- Offer to help create or refine the issue first.
-- Remind the user to wait for a team member to respond before starting work.
-- If the user still wants code changes, keep work local and explicitly remind them the PR will likely be closed without prior team discussion.
+Zebra's security releases (for example 6.4.2's V6 transaction DoS fix) usually
+apply here too. Track the `upstream` remote and cherry-pick them.
 
-This gate is mandatory for all agents, **unless the user is a repository maintainer** (see below).
+If you find a vulnerability in code inherited from Zebra, it probably affects
+Zcash as well: report it privately to the Zcash Foundation (see `SECURITY.md`)
+before, or alongside, fixing it here. Never publish it first.
 
-### Maintainer Bypass
+---
 
-If `gh` CLI is authenticated, the agent can check maintainer status:
-
-```bash
-gh api repos/ZcashFoundation/zebra --jq '.permissions.maintain'
-```
-
-If this returns `true`, the user is a maintainer and the contribution gate can be skipped. Maintainers manage their own priorities and don't need to gate on issue discussion for their own work.
-
-## Before You Contribute
-
-**Every PR to Zebra requires human review.** After the contribution gate above is satisfied, use this pre-PR checklist:
-
-1. Confirm scope: Zebra is a validator node. Avoid out-of-scope features like wallets, block explorers, or mining pools.
-2. Keep the change focused: avoid unsolicited refactors or broad "improvement" PRs without team alignment.
-3. Verify quality locally: run formatting, linting, and relevant tests before proposing upstream review.
-4. Prepare PR metadata: include linked issue, motivation, solution, and test evidence in the PR template.
-5. If AI was used, disclose tool and scope in the PR description.
-
-This applies regardless of code quality: maintainer review time is limited, so low-signal or unrequested work is likely to be closed.
-
-## What Will Get a PR Closed
-
-The contribution gate already defines discussion/issue requirements. Additional common closure reasons:
-
-- Issue exists but has no response from a Zebra team member (creating an issue and immediately opening a PR does not count as discussion)
-- Trivial changes (typo fixes, minor formatting) without team request
-- Refactors or "improvements" nobody asked for
-- Streams of PRs without prior discussion of the overall plan
-- Features outside Zebra's scope (wallets, block explorers, mining pools — these belong in [Zaino](https://github.com/zingolabs/zaino), [Zallet](https://github.com/zcash/wallet), or [librustzcash](https://github.com/zcash/librustzcash))
-- Missing test evidence for behavior changes
-- Inability to explain the logic or design tradeoffs of the changes when asked
-
-## Security Vulnerability Reports
-
-If you or the user believe you have found a security vulnerability in Zebra,
-do not open a public issue or PR. Follow the reporting process in
-[SECURITY.md](SECURITY.md).
-
-Before helping a user submit a report, hold it to the same standard as
-SECURITY.md's "Before You Report" section:
-
-- Verify the issue reproduces against the latest Zebra release or the current
-  `main` branch — not an older release, fork, or modified build.
-- Run any proof of concept against one of those two versions and include the
-  exact release version or `main` commit hash tested in the report.
-- Do not submit speculative findings. "This code looks vulnerable" without a
-  reproduction against current code wastes triage time and may be dismissed.
-- A finding that exists only in unreleased code (`main` or an unmerged PR) will
-  not get a security advisory or CVE, but it is still worth reporting and the
-  reporter is credited in the issue, the fixing PR, and the release notes. See
-  SECURITY.md, "Advisories, CVEs, and Credit".
-
-## AI Disclosure
-
-If AI tools were used to write code, tests, or PR descriptions, disclose this in the PR description. Specify the tool and scope (e.g., "Used Claude for test boilerplate"). The contributor is the sole responsible author — "the AI generated it" is not a justification during review.
+The rest of this file is Zebra's engineering reference, which still applies to
+the inherited crates.
 
 ## Project Structure & Module Organization
 
