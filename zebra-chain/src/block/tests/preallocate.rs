@@ -12,13 +12,9 @@ use crate::{
     },
 };
 
-/// The serialized size of a Zcash block header.
-///
-/// Equihash input + 32-byte nonce + 3-byte equihash solution-length field +
-/// equihash solution. Used as a serialized-size lower bound by the
-/// `counted_header_min_length` proptest.
-const BLOCK_HEADER_LENGTH: usize =
-    crate::work::equihash::Solution::INPUT_LENGTH + 32 + 3 + crate::work::equihash::SOLUTION_SIZE;
+/// The serialized size of a block header. Used as a serialized-size lower
+/// bound by the `counted_header_min_length` proptest.
+const BLOCK_HEADER_LENGTH: usize = crate::block::Header::SERIALIZED_SIZE;
 
 /// The minimum size for a serialized `CountedHeader`: header bytes plus at
 /// least one byte for the transaction count CompactSize.

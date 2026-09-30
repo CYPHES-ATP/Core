@@ -79,8 +79,8 @@ use zebra_chain::{
     transparent::{self, Address, OutputIndex},
     value_balance::ValueBalance,
     work::{
+        beamhash::{Solution, NONCE_LEN},
         difficulty::{CompactDifficulty, ExpandedDifficulty, ParameterDifficulty, U256},
-        equihash::Solution,
     },
 };
 use zebra_consensus::{
@@ -4355,9 +4355,9 @@ pub struct BlockObject {
     #[serde(with = "opthex")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[getter(copy)]
-    nonce: Option<[u8; 32]>,
+    nonce: Option<[u8; NONCE_LEN]>,
 
-    /// The Equihash solution in the requested block header.
+    /// The BeamHash III solution in the requested block header.
     /// Note: presence of this field in getblock is not documented in zcashd.
     #[serde(with = "opthex")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4482,9 +4482,9 @@ pub struct BlockHeaderObject {
     /// The nonce of the requested block header.
     #[serde(with = "hex")]
     #[getter(copy)]
-    nonce: [u8; 32],
+    nonce: [u8; NONCE_LEN],
 
-    /// The Equihash solution in the requested block header.
+    /// The BeamHash III solution in the requested block header.
     #[serde(with = "hex")]
     #[getter(copy)]
     solution: Solution,
@@ -4534,7 +4534,7 @@ impl Default for BlockHeaderObject {
             final_sapling_root: Default::default(),
             sapling_tree_size: Default::default(),
             time: 0,
-            nonce: [0; 32],
+            nonce: [0; NONCE_LEN],
             solution: Solution::for_proposal(),
             bits: difficulty.to_compact(),
             difficulty: 1.0,

@@ -22,7 +22,7 @@ use zebra_chain::{
     diagnostic::task::WaitForPanics,
     serialization::{AtLeastOne, ZcashSerialize},
     shutdown::is_shutting_down,
-    work::equihash::{Solution, SolverCancelled},
+    work::beamhash::{Solution, SolverCancelled},
 };
 use zebra_network::AddressBookPeers;
 use zebra_node_services::mempool;
@@ -55,8 +55,8 @@ pub const BLOCK_MINING_WAIT_TIME: Duration = Duration::from_secs(3);
 
 /// Initialize the miner based on its config, and spawn a task for it.
 ///
-/// This method is CPU and memory-intensive. It uses 144 MB of RAM and one CPU core per configured
-/// mining thread.
+/// This method is CPU and memory-intensive. The BeamHash III reference solver uses every CPU core
+/// and about 8 GiB of RAM, so only one solver runs.
 ///
 /// See [`run_mining_solver()`] for more details.
 pub fn spawn_init<Mempool, State, ReadState, Tip, AddressBook, BlockVerifierRouter, SyncStatus>(
@@ -108,8 +108,8 @@ where
 
 /// Initialize the miner based on its config.
 ///
-/// This method is CPU and memory-intensive. It uses 144 MB of RAM and one CPU core per configured
-/// mining thread.
+/// This method is CPU and memory-intensive. The BeamHash III reference solver uses every CPU core
+/// and about 8 GiB of RAM, so only one solver runs.
 ///
 /// See [`run_mining_solver()`] for more details.
 pub async fn init<Mempool, State, ReadState, Tip, BlockVerifierRouter, SyncStatus, AddressBook>(
@@ -342,10 +342,10 @@ where
     Ok(())
 }
 
-/// Runs a single mining thread that gets blocks from the `template_receiver`, calculates equihash
+/// Runs a single mining task that gets blocks from the `template_receiver`, calculates BeamHash III
 /// solutions with nonces based on `solver_id`, and submits valid blocks to Zebra's block validator.
 ///
-/// This method is CPU and memory-intensive. It uses 144 MB of RAM and one CPU core while running.
+/// This method is CPU and memory-intensive. It uses every CPU core and about 8 GiB of RAM while running.
 /// It can run for minutes or hours if the network difficulty is high. Mining uses a thread with
 /// low CPU priority.
 #[instrument(skip(template_receiver, rpc))]

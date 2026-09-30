@@ -65,7 +65,7 @@ static INVALID_HEADER_SOLUTION_TRANSCRIPT: Lazy<
         Block::zcash_deserialize(&zebra_test::vectors::BLOCK_MAINNET_GENESIS_BYTES[..]).unwrap();
 
     // Change nonce to something invalid
-    Arc::make_mut(&mut block.header).nonce = [0; 32].into();
+    Arc::make_mut(&mut block.header).nonce = [0; 8].into();
 
     vec![(
         Request::Commit(Arc::new(block)),
@@ -273,7 +273,7 @@ fn equihash_is_valid_for_historical_blocks() -> Result<(), Report> {
             .zcash_deserialize_into::<Block>()
             .expect("block is structurally valid");
 
-        check::equihash_solution_is_valid(&block.header)
+        check::pow_solution_is_valid(&block.header)
             .expect("the equihash solution from a historical block should be valid");
     }
 

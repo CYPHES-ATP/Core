@@ -31,7 +31,7 @@ async-error = [
 ]
 
 # Experimental internal miner support
-internal-miner = ["equihash/solver"]
+internal-miner = ["cyphes-pow/solver"]
 
 # Experimental elasticsearch support
 elasticsearch = []
@@ -63,7 +63,8 @@ blake2s_simd = { workspace = true }
 bs58 = { workspace = true, features = ["check"] }
 byteorder = { workspace = true }
 
-equihash = { workspace = true }
+cyphes-params = { path = "../cyphes-params" }
+cyphes-pow = { path = "../cyphes-pow" }
 
 group = { workspace = true }
 incrementalmerkletree.workspace = true

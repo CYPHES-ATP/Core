@@ -207,6 +207,7 @@ fn unpack_indices(packed: &[u8]) -> [u32; NUM_INDICES] {
 }
 
 /// Pack 32 indices into 100 bytes (inverse of [`unpack_indices`]).
+#[cfg(any(test, feature = "solver"))]
 fn pack_indices(indices: &[u32]) -> [u8; PACKED_INDICES_LEN] {
     debug_assert_eq!(indices.len(), NUM_INDICES);
     let mut out = [0u8; PACKED_INDICES_LEN];

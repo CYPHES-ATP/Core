@@ -9,7 +9,7 @@ use crate::{
     fmt::HexDebug,
     parameters::Network,
     serialization::{TrustedPreallocate, MAX_HEADERS_PER_MESSAGE},
-    work::{difficulty::CompactDifficulty, equihash::Solution},
+    work::{beamhash::Solution, difficulty::CompactDifficulty},
 };
 
 use super::{merkle, Commitment, CommitmentError, Hash, Height};
@@ -66,9 +66,9 @@ pub struct Header {
     /// started hashing the header (according to the miner).
     pub time: DateTime<Utc>,
 
-    /// An encoded version of the target threshold this block's header
-    /// hash must be less than or equal to, in the same nBits format
-    /// used by Bitcoin.
+    /// An encoded version of the target threshold that `SHA-256(solution)`
+    /// must be less than or equal to, in the same nBits format used by
+    /// Bitcoin.
     ///
     /// For a block at block height `height`, bits MUST be equal to
     /// `ThresholdBits(height)`.
@@ -76,12 +76,10 @@ pub struct Header {
     /// [Bitcoin-nBits](https://bitcoin.org/en/developer-reference#target-nbits)
     pub difficulty_threshold: CompactDifficulty,
 
-    /// An arbitrary field that miners can change to modify the header
-    /// hash in order to produce a hash less than or equal to the
-    /// target threshold.
-    pub nonce: HexDebug<[u8; 32]>,
+    /// The BeamHash III nonce, which miners vary to search for a solution.
+    pub nonce: HexDebug<[u8; 8]>,
 
-    /// The Equihash solution.
+    /// The BeamHash III solution.
     pub solution: Solution,
 }
 
@@ -140,26 +138,14 @@ impl Header {
         Hash::from(self)
     }
 
-    /// The serialized size of a block header on Mainnet and Testnet (except Regtest), in bytes:
-    /// the fields before the nonce, the 32-byte nonce, and the length-prefixed solution.
-    pub const SERIALIZED_SIZE: usize = Solution::INPUT_LENGTH + 32 + Solution::SERIALIZED_SIZE;
-
-    /// The serialized size of a block header on Regtest, in bytes:
-    /// the fields before the nonce, the 32-byte nonce, and the length-prefixed solution.
-    pub const REGTEST_SERIALIZED_SIZE: usize =
-        Solution::INPUT_LENGTH + 32 + Solution::REGTEST_SERIALIZED_SIZE;
+    /// The serialized size of a block header, in bytes: the fields before the
+    /// nonce, the 8-byte nonce, and the 104-byte solution. It is the same on
+    /// every network.
+    pub const SERIALIZED_SIZE: usize = Solution::INPUT_LENGTH + 8 + Solution::SERIALIZED_SIZE;
 
     /// Returns the size of a serialized block header on `network`, in bytes.
-    ///
-    /// Every header field has a fixed size, except the Equihash solution,
-    /// whose size is constant per network, so this is also constant per network:
-    /// [`Self::REGTEST_SERIALIZED_SIZE`] on Regtest, [`Self::SERIALIZED_SIZE`] everywhere else.
-    pub fn serialized_size(network: &Network) -> usize {
-        if network.is_regtest() {
-            Self::REGTEST_SERIALIZED_SIZE
-        } else {
-            Self::SERIALIZED_SIZE
-        }
+    pub fn serialized_size(_network: &Network) -> usize {
+        Self::SERIALIZED_SIZE
     }
 }
 

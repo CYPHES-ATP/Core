@@ -12,7 +12,7 @@ use crate::{
         CompactSizeMessage, ReadZcashExt, SerializationError, ZcashDeserialize,
         ZcashDeserializeInto, ZcashSerialize,
     },
-    work::{difficulty::CompactDifficulty, equihash},
+    work::{beamhash, difficulty::CompactDifficulty},
 };
 
 /// The maximum size of a Zcash block, in bytes.
@@ -101,8 +101,12 @@ impl ZcashDeserialize for Header {
                     "out-of-range number of seconds and/or invalid nanosecond",
                 ))?,
             difficulty_threshold: CompactDifficulty(reader.read_u32::<LittleEndian>()?),
-            nonce: reader.read_32_bytes()?.into(),
-            solution: equihash::Solution::zcash_deserialize(reader)?,
+            nonce: {
+                let mut nonce = [0; beamhash::NONCE_LEN];
+                reader.read_exact(&mut nonce)?;
+                nonce.into()
+            },
+            solution: beamhash::Solution::zcash_deserialize(reader)?,
         })
     }
 }

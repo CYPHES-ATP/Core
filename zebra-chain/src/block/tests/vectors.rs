@@ -120,11 +120,7 @@ fn chain_value_pool_change_propagates_transaction_value_balance_errors() {
 fn blockheader_serialization() {
     let _init_guard = zebra_test::init();
 
-    // Includes the 32-byte nonce and 3-byte equihash length field.
-    const BLOCK_HEADER_LENGTH: usize = crate::work::equihash::Solution::INPUT_LENGTH
-        + 32
-        + 3
-        + crate::work::equihash::SOLUTION_SIZE;
+    const BLOCK_HEADER_LENGTH: usize = Header::SERIALIZED_SIZE;
 
     for block in zebra_test::vectors::BLOCKS.iter() {
         // successful deserialization
@@ -197,7 +193,7 @@ fn blockheader_serialized_size() {
 
     // `BLOCKS` contains Mainnet and Testnet blocks, whose headers have the same size.
     for block in zebra_test::vectors::BLOCKS.iter() {
-        let mut header = block[..Header::serialized_size(&Network::Mainnet)]
+        let header = block[..Header::serialized_size(&Network::Mainnet)]
             .zcash_deserialize_into::<Header>()
             .expect("blockheader test vector should deserialize");
 
@@ -211,20 +207,10 @@ fn blockheader_serialized_size() {
             "serialized header size should match Header::serialized_size on Mainnet"
         );
 
-        // Regtest headers only differ in the size of the Equihash solution.
-        header.solution = crate::work::equihash::Solution::from_bytes(
-            &[0; crate::work::equihash::REGTEST_SOLUTION_SIZE],
-        )
-        .expect("Regtest solution size should be valid");
-
-        let serialized_header = header
-            .zcash_serialize_to_vec()
-            .expect("Regtest blockheader should serialize");
-
+        // Headers are the same size on every network.
         assert_eq!(
-            serialized_header.len(),
             Header::serialized_size(&Network::new_regtest(Default::default())),
-            "serialized header size should match Header::serialized_size on Regtest"
+            Header::serialized_size(&Network::Mainnet),
         );
     }
 }

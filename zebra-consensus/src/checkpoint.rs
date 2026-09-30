@@ -34,7 +34,7 @@ use zebra_chain::{
         checkpoint::list::CheckpointList, subsidy::SubsidyError, Network,
         GENESIS_PREVIOUS_BLOCK_HASH,
     },
-    work::equihash,
+    work::beamhash,
 };
 use zebra_state::{self as zs, CheckpointVerifiedBlock};
 
@@ -606,7 +606,7 @@ where
             )?;
         } else {
             crate::block::check::difficulty_is_valid(&block.header, &self.network, &height, &hash)?;
-            crate::block::check::equihash_solution_is_valid(&block.header)?;
+            crate::block::check::pow_solution_is_valid(&block.header)?;
         }
 
         // don't do precalculation until the block passes basic difficulty checks
@@ -1010,8 +1010,8 @@ impl From<BlockError> for VerifyCheckpointError {
     }
 }
 
-impl From<equihash::Error> for VerifyCheckpointError {
-    fn from(err: equihash::Error) -> VerifyCheckpointError {
+impl From<beamhash::Error> for VerifyCheckpointError {
+    fn from(err: beamhash::Error) -> VerifyCheckpointError {
         VerifyCheckpointError::VerifyBlock(err.into())
     }
 }

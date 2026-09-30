@@ -313,7 +313,7 @@ async fn get_block_data(
     height: usize,
     prev_block_info: Option<BlockInfo>,
 ) -> (
-    [u8; 32],
+    [u8; 8],
     [u8; 32],
     [u8; 32],
     Option<BlockInfo>,

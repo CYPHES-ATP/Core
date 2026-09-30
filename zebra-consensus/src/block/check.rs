@@ -20,8 +20,8 @@ use zebra_chain::{
     transaction::{self, Transaction},
     transparent::{Address, Output},
     work::{
+        beamhash,
         difficulty::{ExpandedDifficulty, ParameterDifficulty as _},
-        equihash,
     },
 };
 
@@ -102,11 +102,9 @@ pub fn difficulty_threshold_is_valid(
     Ok(difficulty_threshold)
 }
 
-/// Returns `Ok(())` if `hash` passes:
+/// Returns `Ok(())` if `header` passes:
 ///   - the target difficulty limit for `network` (PoWLimit), and
-///   - the difficulty filter,
-///
-/// based on the fields in `header`.
+///   - the difficulty filter: `SHA-256(solution)` is at most the target.
 ///
 /// If the block is invalid, returns an error containing `height` and `hash`.
 pub fn difficulty_is_valid(
@@ -117,17 +115,15 @@ pub fn difficulty_is_valid(
 ) -> Result<(), BlockError> {
     let difficulty_threshold = difficulty_threshold_is_valid(header, network, height, hash)?;
 
-    // Note: the comparison in this function is a u256 integer comparison, like
-    // zcashd and bitcoin. Greater values represent *less* work.
-
     // # Consensus
     //
-    // > The block MUST pass the difficulty filter.
+    // > The block MUST pass the difficulty filter: SHA-256 of the BeamHash III
+    // > solution, read as a big-endian 256-bit number, MUST be at most the target.
     //
-    // https://zips.z.cash/protocol/protocol.pdf#blockheader
-    //
-    // The difficulty filter is also context-free.
-    if hash > &difficulty_threshold {
+    // This is Beam's rule, so BeamHash III miners filter shares correctly. It is
+    // a u256 comparison where greater values represent *less* work, and it is
+    // context-free.
+    if !header.solution.meets_threshold(difficulty_threshold) {
         Err(BlockError::DifficultyFilter(
             *height,
             *hash,
@@ -139,13 +135,12 @@ pub fn difficulty_is_valid(
     Ok(())
 }
 
-/// Returns `Ok(())` if the `EquihashSolution` is valid for `header`
-pub fn equihash_solution_is_valid(header: &Header) -> Result<(), equihash::Error> {
+/// Returns `Ok(())` if the BeamHash III solution is valid for `header`
+pub fn pow_solution_is_valid(header: &Header) -> Result<(), beamhash::Error> {
     // # Consensus
     //
-    // > `solution` MUST represent a valid Equihash solution.
-    //
-    // https://zips.z.cash/protocol/protocol.pdf#blockheader
+    // > `solution` MUST be a valid BeamHash III solution for the header's
+    // > PoW input and nonce.
     header.solution.check(header)
 }
 

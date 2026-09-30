@@ -2,16 +2,12 @@ use super::*;
 
 use proptest::{collection::vec, prelude::*};
 
-impl Arbitrary for equihash::Solution {
+impl Arbitrary for beamhash::Solution {
     type Parameters = ();
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (vec(any::<u8>(), equihash::SOLUTION_SIZE))
-            .prop_map(|v| {
-                let mut bytes = [0; equihash::SOLUTION_SIZE];
-                bytes.copy_from_slice(v.as_slice());
-                Self::Common(bytes)
-            })
+        (vec(any::<u8>(), beamhash::SOLUTION_LEN))
+            .prop_map(|v| Self::from_bytes(&v).expect("vector has the solution length"))
             .boxed()
     }
 

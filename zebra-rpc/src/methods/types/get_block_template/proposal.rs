@@ -8,7 +8,7 @@ use zebra_chain::{
     block::{self, Block, Height},
     parameters::{Network, NetworkUpgrade},
     serialization::{BytesInDisplayOrder, DateTime32, SerializationError, ZcashDeserializeInto},
-    work::equihash::Solution,
+    work::beamhash::{Solution, NONCE_LEN},
 };
 use zebra_node_services::BoxError;
 
@@ -239,7 +239,7 @@ pub fn proposal_block_from_template(
             commitment_bytes,
             time,
             difficulty_threshold,
-            nonce: [0; 32].into(),
+            nonce: [0; NONCE_LEN].into(),
             solution: Solution::for_proposal(),
         }),
         transactions,

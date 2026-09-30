@@ -15,7 +15,7 @@ use crate::{
         new_transaction_ordered_outputs, CoinbaseSpendRestriction,
         MIN_TRANSPARENT_COINBASE_MATURITY,
     },
-    work::{difficulty::CompactDifficulty, equihash},
+    work::{beamhash, difficulty::CompactDifficulty},
 };
 
 use super::*;
@@ -756,8 +756,8 @@ impl Arbitrary for Header {
             any::<HexDebug<[u8; 32]>>(),
             serialization::arbitrary::datetime_u32(),
             any::<CompactDifficulty>(),
-            any::<HexDebug<[u8; 32]>>(),
-            any::<equihash::Solution>(),
+            any::<HexDebug<[u8; beamhash::NONCE_LEN]>>(),
+            any::<beamhash::Solution>(),
         )
             .prop_map(
                 move |(

@@ -26,7 +26,7 @@ use zebra_chain::{
     block,
     parameters::{subsidy::SubsidyError, Network},
     transparent,
-    work::equihash,
+    work::beamhash,
 };
 use zebra_state as zs;
 
@@ -66,9 +66,9 @@ pub enum VerifyBlockError {
     },
 
     #[error(transparent)]
-    Equihash {
+    ProofOfWork {
         #[from]
-        source: equihash::Error,
+        source: beamhash::Error,
     },
 
     #[error(transparent)]
@@ -134,7 +134,7 @@ impl VerifyBlockError {
         use VerifyBlockError::*;
         match self {
             Block { source } => source.misbehavior_score(),
-            Equihash { .. } | Subsidy(_) => 100,
+            ProofOfWork { .. } | Subsidy(_) => 100,
             Transaction(err) => err.mempool_misbehavior_score(),
             Commit(err) => err.misbehavior_score(),
             _other => 0,
@@ -277,7 +277,7 @@ where
                 // Do the difficulty checks first, to raise the threshold for
                 // attacks that use any other fields.
                 check::difficulty_is_valid(&block.header, &network, &height, &hash)?;
-                check::equihash_solution_is_valid(&block.header)?;
+                check::pow_solution_is_valid(&block.header)?;
             }
 
             // Next, check the Merkle root validity, to ensure that
