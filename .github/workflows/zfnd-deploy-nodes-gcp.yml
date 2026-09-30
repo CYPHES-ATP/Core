@@ -1,0 +1,290 @@
+# Build and deploy Zebra nodes to Google Cloud Platform.
+#
+# The event-driven wrapper preserves the existing PR, main, release, and manual
+# build inputs. Deployment is delegated to zfnd-deploy-prebuilt-nodes-gcp.yml
+# with the complete immutable image identity returned by the build.
+name: Deploy Nodes to GCP
+
+# Ensures that only one workflow task will run at a time. Previous deployments, if
+# already in process, won't get cancelled. Instead, we let the first to complete
+# then queue the latest pending workflow, cancelling any workflows in between.
+#
+# Since the different event types each use a different Managed Instance Group or instance,
+# we can run different event types concurrently.
+#
+# For pull requests, we only run the tests from this workflow, and don't do any deployments.
+# So an in-progress pull request gets cancelled, just like other tests.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}-${{ inputs.environment }}-${{ inputs.network }}-${{ inputs.zone }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+on:
+
+  workflow_dispatch:
+    inputs:
+      # Deployment configuration
+      network:
+        description: "Network to deploy: Mainnet or Testnet"
+        required: true
+        type: choice
+        default: Mainnet
+        options:
+          - Mainnet
+          - Testnet
+      zone:
+        description: "GCP zone for the workflow_dispatch deploy (single zone)"
+        required: true
+        type: choice
+        default: us-east1-b
+        options:
+          - us-east1-b
+          - us-east1-c
+          - us-east1-d
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        default: dev
+        options:
+          - dev
+          - prod
+      # Disk configuration
+      need_cached_disk:
+        description: Use a cached state disk
+        type: boolean
+        default: true
+      cached_disk_type:
+        description: Type of cached disk to use
+        required: true
+        type: choice
+        default: tip
+        options:
+          - tip
+          - checkpoint
+      # Build configuration
+      no_cache:
+        description: Disable the Docker cache for this build
+        type: boolean
+        default: false
+      # Logging configuration
+      log_file:
+        description: Log to a file path rather than standard output
+        default: ""
+
+  push:
+    # Skip main branch updates where Rust code and dependencies aren't modified.
+    branches:
+      - main
+    paths:
+      # code and tests
+      - "**/*.rs"
+      # hard-coded checkpoints and proptest regressions
+      - "**/*.txt"
+      # dependencies
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      # configuration files
+      - .cargo/config.toml
+      - "**/clippy.toml"
+      # workflow definitions
+      - docker/**
+      - .dockerignore
+      - .github/workflows/zfnd-deploy-nodes-gcp.yml
+      - .github/workflows/zfnd-deploy-prebuilt-nodes-gcp.yml
+      - .github/workflows/zfnd-build-docker-image.yml
+
+  # Only runs the Docker image tests, doesn't deploy any instances
+  pull_request:
+    # Skip PRs where Rust code and dependencies aren't modified.
+    paths:
+      # code and tests
+      - "**/*.rs"
+      # hard-coded checkpoints and proptest regressions
+      - "**/*.txt"
+      # dependencies
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      # configuration files
+      - .cargo/config.toml
+      - "**/clippy.toml"
+      # workflow definitions
+      - docker/**
+      - .dockerignore
+      - .github/workflows/zfnd-deploy-nodes-gcp.yml
+      - .github/workflows/zfnd-deploy-prebuilt-nodes-gcp.yml
+      - .github/workflows/zfnd-build-docker-image.yml
+
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+jobs:
+  # Resolve event-specific values once, then pass explicit deployment inputs to
+  # the reusable deployment workflow.
+  set-matrix:
+    name: Resolve event deployment inputs
+    runs-on: ubuntu-latest
+    outputs:
+      networks: ${{ steps.set-matrix.outputs.networks }}
+      zones: ${{ steps.set-matrix.outputs.zones }}
+      environment: ${{ steps.set-matrix.outputs.environment }}
+      use_cached_disk: ${{ steps.set-matrix.outputs.use_cached_disk }}
+      cached_disk_type: ${{ steps.set-matrix.outputs.cached_disk_type }}
+      log_file: ${{ steps.set-matrix.outputs.log_file }}
+      verify: ${{ steps.set-matrix.outputs.verify }}
+      use_reserved_ip: ${{ steps.set-matrix.outputs.use_reserved_ip }}
+    steps:
+      - id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          DISPATCH_NETWORK: ${{ inputs.network }}
+          DISPATCH_ZONE: ${{ inputs.zone }}
+          DISPATCH_ENVIRONMENT: ${{ inputs.environment }}
+          DISPATCH_USE_CACHED_DISK: ${{ inputs.need_cached_disk }}
+          DISPATCH_CACHED_DISK_TYPE: ${{ inputs.cached_disk_type }}
+          DISPATCH_LOG_FILE: ${{ inputs.log_file }}
+        run: |
+          NETWORKS='["Mainnet","Testnet"]'
+          ZONES='["us-east1-b","us-east1-c","us-east1-d"]'
+          CACHED_DISK_TYPE="tip"
+          # Empty means "use the deployment environment's default", which the
+          # environment-scoped deploy job resolves from vars.CD_LOG_FILE.
+          LOG_FILE=""
+
+          case "${EVENT_NAME}" in
+            release)
+              ENVIRONMENT="prod"
+              USE_CACHED_DISK="false"
+              VERIFY="true"
+              USE_RESERVED_IP="true"
+              ;;
+            workflow_dispatch)
+              ENVIRONMENT="${DISPATCH_ENVIRONMENT}"
+              NETWORKS=$(jq -cn --arg network "${DISPATCH_NETWORK}" '[$network]')
+              ZONES=$(jq -cn --arg zone "${DISPATCH_ZONE}" '[$zone]')
+              USE_CACHED_DISK="${DISPATCH_USE_CACHED_DISK}"
+              CACHED_DISK_TYPE="${DISPATCH_CACHED_DISK_TYPE}"
+              LOG_FILE="${DISPATCH_LOG_FILE}"
+              VERIFY="false"
+              # A dispatch binds the reserved address when it targets prod, or when it
+              # runs from `main` - where the dev prefix resolves to the stage MIG, and
+              # so must keep advertising the stage address.
+              if [ "${DISPATCH_ENVIRONMENT}" = "prod" ] || [ "${REF_NAME}" = "main" ]; then
+                USE_RESERVED_IP="true"
+              else
+                USE_RESERVED_IP="false"
+              fi
+              ;;
+            push)
+              ENVIRONMENT="stage"
+              USE_CACHED_DISK="true"
+              VERIFY="true"
+              USE_RESERVED_IP="true"
+              ;;
+            *)
+              ENVIRONMENT="dev"
+              USE_CACHED_DISK="true"
+              VERIFY="false"
+              USE_RESERVED_IP="false"
+              ;;
+          esac
+
+          {
+            echo "networks=${NETWORKS}"
+            echo "zones=${ZONES}"
+            echo "environment=${ENVIRONMENT}"
+            echo "use_cached_disk=${USE_CACHED_DISK}"
+            echo "cached_disk_type=${CACHED_DISK_TYPE}"
+            echo "log_file=${LOG_FILE}"
+            echo "verify=${VERIFY}"
+            echo "use_reserved_ip=${USE_RESERVED_IP}"
+          } >> "$GITHUB_OUTPUT"
+
+  # Each time this workflow is executed, a build will be triggered to create a new image
+  # with the corresponding tags using information from Git.
+  build:
+    name: Build CD Docker
+    needs: [set-matrix]
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      attestations: write # required by the called build workflow's merge job
+    uses: ./.github/workflows/zfnd-build-docker-image.yml
+    # Build for:
+    # - Pull requests
+    # - Manual workflow_dispatch
+    # - Push to main branch
+    # - Releases
+    if: >-
+      ${{
+        (github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork) ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && github.ref_name == 'main') ||
+        (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v'))
+      }}
+    with:
+      source_sha: ${{ github.sha }}
+      dockerfile_path: ./docker/Dockerfile
+      dockerfile_target: runtime
+      image_name: zebrad
+      no_cache: ${{ inputs.no_cache || false }}
+      rust_log: info
+      features: ${{ format('{0} {1}', vars.RUST_PROD_FEATURES, vars.RUST_TEST_FEATURES) }}
+      environment: ${{ needs.set-matrix.outputs.environment }}
+    # This step needs access to Docker Hub secrets to run successfully
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  deploy:
+    name: Deploy immutable image
+    needs: [set-matrix, build]
+    if: >-
+      ${{
+        github.repository_owner == 'ZcashFoundation' &&
+        (
+          (github.event_name == 'push' && github.ref_name == 'main') ||
+          (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v')) ||
+          github.event_name == 'workflow_dispatch'
+        )
+      }}
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    uses: ./.github/workflows/zfnd-deploy-prebuilt-nodes-gcp.yml
+    with:
+      image: ${{ needs.build.outputs.image }}
+      source_sha: ${{ github.sha }}
+      environment: ${{ needs.set-matrix.outputs.environment }}
+      created_by: ${{ github.event_name }}
+      networks: ${{ needs.set-matrix.outputs.networks }}
+      zones: ${{ needs.set-matrix.outputs.zones }}
+      use_cached_disk: ${{ fromJSON(needs.set-matrix.outputs.use_cached_disk) }}
+      cached_disk_type: ${{ needs.set-matrix.outputs.cached_disk_type }}
+      log_file: ${{ needs.set-matrix.outputs.log_file }}
+      verify: ${{ fromJSON(needs.set-matrix.outputs.verify) }}
+      use_reserved_ip: ${{ fromJSON(needs.set-matrix.outputs.use_reserved_ip) }}
+
+  build-failure-issue:
+    name: Open or update issues for image build failures
+    needs: [build]
+    if: (failure() && github.event.pull_request == null) || (cancelled() && github.event.pull_request == null)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: jayqi/failed-build-issue-action@1a893bbf43ef1c2a8705e2b115cd4f0fe3c5649b #v1.2.0
+        with:
+          title-template: "{{refname}} branch CI failed: {{eventName}} in {{workflow}}"
+          # New failures open an issue with this label.
+          label-name: ci-fail/release
+          # If there is already an open issue with this label, any failures become comments on that issue.
+          always-create-new-issue: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}

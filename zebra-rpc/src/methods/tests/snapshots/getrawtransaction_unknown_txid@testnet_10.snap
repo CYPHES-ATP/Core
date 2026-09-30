@@ -1,0 +1,10 @@
+---
+source: zebra-rpc/src/methods/tests/snapshot.rs
+expression: rsp
+---
+{
+  "Err": {
+    "code": -5,
+    "message": "Transaction not found in mempool or best chain"
+  }
+}
