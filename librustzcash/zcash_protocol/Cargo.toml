@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "zcash_protocol"
-version = "0.10.1"
+version = "0.10.6"
 authors = [
     "Jack Grigg <jack@electriccoin.co>",
     "Kris Nuttycombe <kris@nutty.land>",
@@ -102,6 +102,6 @@ level = "warn"
 priority = 0
 check-cfg = [
     "cfg(tokio_unstable)",
-    'cfg(zcash_unstable, values("nu7"))',
+    'cfg(zcash_unstable, values("nu7", "nutachyon"))',
     "cfg(live_network_tests)",
 ]

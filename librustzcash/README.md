@@ -9,7 +9,7 @@ crate. `orchard` is never patched.
 
 | Crate | Upstream version | Upstream commit |
 |---|---|---|
-| `zcash_protocol` | 0.10.1 (crates.io) | `033a0a9b8c32d82006d67984ed145f4827ca5219` (`components/zcash_protocol`) |
+| `zcash_protocol` | 0.10.6 (crates.io) | `28cf1143f932dae94d8626fc0d26a6c61b08823c` (`components/zcash_protocol`) |
 
 The first commit adding a crate here is its unmodified crates.io source; the
 CYPHES changes are separate commits on top, so `git log -p librustzcash/` is
