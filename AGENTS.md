@@ -44,6 +44,8 @@ not apply; do not open pull requests against `ZcashFoundation/zebra` from here.
 | Genesis blocks and builder | `zebra-chain/src/block/genesis/`, `zebra-chain/examples/cyphes_genesis.rs` |
 | CYPHES block vectors | `zebra-test/src/vectors/cyphes/` |
 | Local devnet | `devnet/regtest.toml` |
+| librustzcash fork (money, branch ID, addresses) | `librustzcash/zcash_protocol/` |
+| Wallet library, CLI, money-cycle harness | `cyphes-wallet/` |
 
 Many Zebra tests still parse Zcash block vectors and fail;
 `docs/cyphes/TESTS-PENDING-VECTORS.md` lists them. Do not "fix" them by

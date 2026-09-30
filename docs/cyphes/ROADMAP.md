@@ -33,13 +33,21 @@ building GPU mining on it, and prove both before putting it in the desktop app.
 - **The CLI money cycle is proven** by `cyphes-wallet/tests/money_cycle.rs`
   against real nodes, every block mined with BeamHash III: mine and receive
   under the 100-confirmation coinbase policy; corrupted proof of work
-  rejected by the node; spend with exact reconciliation; restore from seed;
-  a two-node reorganisation with an orphaned payment and an unknown-anchor
-  rejection; double spend and broken value conservation rejected; a mined
-  22,000,000 CASH note received and spent. `tests/large_value_fixture.rs`
-  adds a synthetic 9,999,000,000 CASH Ironwood note, proven and verified.
+  rejected by the node, each for its specific reason; spend with exact
+  reconciliation; restore from seed; crash recovery (SIGKILL, and a torn
+  block backup); a two-node reorganisation that orphans a payment the
+  receiver could already spend, with an unknown-anchor rejection; double
+  spends rejected in the mempool and in blocks mined with valid proof of
+  work; broken value conservation rejected; a mined 22,000,000 CASH note
+  received and spent. `tests/large_value_fixture.rs` adds a synthetic
+  9,999,000,000 CASH Ironwood note, created and then spent, each proven and
+  verified.
 - Node durability: the non-finalized block backup is written on every
-  commit, so a restarted node keeps its newest blocks.
+  commit, atomically (temporary file, fsync, rename). A node killed without
+  warning restarts with its newest blocks; a torn backup file is skipped,
+  costing only that block.
+- Wallet coinbase policy: mainnet wallets cannot lower the 100-confirmation
+  policy.
 
 ## 1. Remaining parameter and test work
 
@@ -51,7 +59,10 @@ building GPU mining on it, and prove both before putting it in the desktop app.
 ## 2. Money cycle follow-ups
 
 - Run `money_cycle` in CI on every change to the node, the fork or the
-  wallet (it needs about 40 minutes and 10 GiB).
+  wallet (it needs about 30 minutes and 10 GiB), plus the fast CYPHES
+  suites on every push.
+- Durability is proven for process crashes (SIGKILL). Power loss is covered
+  by fsync, but untested: it needs a VM or fault-injecting filesystem.
 - Zebra retries transactions submitted over RPC. A transaction rejected for
   an unknown anchor can therefore confirm later, if a reorganisation makes
   that anchor known. The harness observed this; it is correct, but wallets

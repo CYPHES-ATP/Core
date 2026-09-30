@@ -15,7 +15,8 @@ is meant to use the same library.
   CYPHES node (`rpc.lightwalletd_listen_addr`).
 - **Coinbase policy.** Mined notes are locked until 100 confirmations. Shielded
   coinbase has no consensus maturity rule, so this is wallet policy;
-  `--coinbase-confirmations` changes it, for test networks only. Other
+  `--coinbase-confirmations` changes it. Test networks may lower it; on
+  mainnet the wallet refuses anything below 100. Other
   received value follows ZIP 315 (3 confirmations for the wallet's own
   change, 10 for everything else).
 
@@ -48,24 +49,29 @@ development and testing.
 every block with BeamHash III, and writes its evidence to
 `target/money-cycle/REPORT.md`:
 
-1. **mine and receive**, with the 100-confirmation coinbase policy;
+1. **mine and receive**, with the 100-confirmation coinbase policy; the node
+   rejects corrupted proof of work, each for its specific reason;
 2. **spend**, with balances reconciling to the base unit;
-3. **restore** from seed and birthday into a fresh database;
-4. **reorganisation** across two nodes, with an orphaned payment;
-5. **invalid spends** sent straight to the node: double spend, unknown
-   anchor, broken value conservation;
+3. **restore** from seed and birthday into a fresh database; **crash
+   recovery**: a node killed without warning, and one whose newest block
+   backup was torn, restart consistent;
+4. **reorganisation** across two nodes, orphaning a payment the receiver
+   could already spend; both wallets mark it unmined;
+5. **invalid spends** sent straight to the node: double spends in the
+   mempool and in blocks mined with valid proof of work, an unknown anchor,
+   broken value conservation, each checked for its rejection reason;
 6. **above 21 million**: a mined 22,000,000 CASH note received and spent, on
    a regtest node configured with a 25 million CASH block subsidy (a
    regtest-only test setting).
 
-It takes about 40 minutes and 10 GiB of RAM:
+It takes about 30 minutes and 10 GiB of RAM:
 
 ```sh
 cargo build -p zebrad --features internal-miner
 cargo test -p cyphes-wallet --test money_cycle -- --ignored --nocapture
 ```
 
-`tests/large_value_fixture.rs` complements it with a synthetic Ironwood
-bundle creating a single 9,999,000,000 CASH note, proven and verified with
-the unmodified circuit. It proves the circuit and value types near the cap,
-not anything about a chain.
+`tests/large_value_fixture.rs` complements it with synthetic Ironwood
+bundles that create a single 9,999,000,000 CASH note and then spend it, each
+proven and verified with the unmodified circuit. It proves the circuit and
+value types near the cap, not anything about a chain.

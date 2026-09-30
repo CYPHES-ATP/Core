@@ -983,7 +983,8 @@ fn commitment_is_validated_for_network_upgrade(network: Network, network_upgrade
 
 #[tokio::test]
 async fn non_finalized_state_writes_blocks_to_and_restores_blocks_from_backup_cache() {
-    let network = Network::Mainnet;
+    // CYPHES: a CYPHES block (Zcash block vectors do not parse under the fork).
+    let network = Network::new_regtest(Default::default());
 
     let finalized_state = FinalizedState::new(
         &Config::ephemeral(),
@@ -1009,17 +1010,10 @@ async fn non_finalized_state_writes_blocks_to_and_restores_blocks_from_backup_ca
             )
             .await;
 
-    let blocks = network.block_map();
-    let height = NetworkUpgrade::Heartwood
-        .activation_height(&network)
-        .unwrap()
-        .0;
-    let block = Arc::new(
-        blocks
-            .get(&(height - 1))
-            .expect("test vector exists")
-            .zcash_deserialize_into::<Block>()
-            .expect("block is structurally valid"),
+    let block: Arc<Block> = Arc::new(
+        zebra_test::vectors::CYPHES_REGTEST_BLOCKS[0]
+            .zcash_deserialize_into()
+            .expect("CYPHES block 1 is structurally valid"),
     );
 
     non_finalized_state

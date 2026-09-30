@@ -16,7 +16,9 @@ Zebra-derived node      Rust; Zcash's state, verification and P2P design
 No premine, no founders' reward, no dev fund. Proof of work is the only way
 CASH is created.
 
-> **Status: devnet.** Regtest runs end to end. The mainnet genesis block is
+> **Status: devnet.** Regtest runs end to end: CASH is mined, received,
+> spent and restored from seed by the `cyphes-wallet` CLI
+> ([evidence](docs/cyphes/MONEY-CYCLE-REPORT.md)). The mainnet genesis block is
 > provisional and there is no public network yet. See
 > [docs/cyphes/ROADMAP.md](docs/cyphes/ROADMAP.md).
 
@@ -55,6 +57,8 @@ curl -s -X POST -H 'content-type: application/json' \
 |---|---|
 | `cyphes-params` | CYPHES consensus and network parameters, shared by node and wallet |
 | `cyphes-pow` | BeamHash III verifier and reference solver, tested against Beam's C++ |
+| `cyphes-wallet` | CASH wallet library and CLI on librustzcash; the money-cycle harness |
+| `librustzcash/zcash_protocol` | the forked librustzcash crate: 10B `MAX_MONEY`, CYPHES branch ID and addresses |
 | `zebra-*`, `zebrad` | the node, forked from Zebra v6.4.2 |
 
 ## Credits and license

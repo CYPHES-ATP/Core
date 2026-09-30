@@ -44,3 +44,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tonic = { workspace = true }
+
+[dev-dependencies]
+incrementalmerkletree = { workspace = true }
+# The money-cycle harness builds and mines its own blocks (double spends).
+zebra-chain = { path = "../zebra-chain", features = ["internal-miner"] }
+zebra-rpc = { path = "../zebra-rpc" }

@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     fs::DirEntry,
-    io::{self, ErrorKind},
+    io::{self, ErrorKind, Write},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -203,15 +203,48 @@ impl NonFinalizedBlockBackup {
 /// Writes a block to a file in the provided non-finalized state backup cache directory path.
 fn write_backup_block(backup_dir_path: &Path, block: &ContextuallyVerifiedBlock) {
     let backup_block_file_name: String = block.hash.encode_hex();
-    let backup_block_file_path = backup_dir_path.join(backup_block_file_name);
     let non_finalized_block_backup: NonFinalizedBlockBackup = block.into();
 
-    if let Err(err) = std::fs::write(
-        backup_block_file_path,
-        non_finalized_block_backup.as_bytes(),
+    if let Err(err) = write_file_durably(
+        backup_dir_path,
+        &backup_block_file_name,
+        &non_finalized_block_backup.as_bytes(),
     ) {
         tracing::warn!(?err, "failed to write non-finalized state backup block");
     }
+}
+
+/// CYPHES: writes `bytes` to `dir/name` so that a crash or power loss leaves
+/// either the complete file or none at all.
+///
+/// The bytes go to `dir/name.tmp`, are flushed to disk, and the file is then
+/// renamed into place. A `.tmp` file left by a crash is not named after a
+/// block hash, so the next directory listing deletes it (see
+/// [`process_backup_dir_entry`]).
+fn write_file_durably(dir: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
+    let path = dir.join(name);
+    let temp_path = dir.join(format!("{name}.tmp"));
+
+    let result = (|| {
+        let mut file = std::fs::File::create(&temp_path)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&temp_path, &path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp_path);
+    }
+    result?;
+
+    // Make the rename durable too. Not every platform can sync a directory;
+    // the file itself is already complete on disk.
+    #[cfg(unix)]
+    if let Err(err) = std::fs::File::open(dir).and_then(|dir| dir.sync_all()) {
+        tracing::debug!(?err, "failed to sync non-finalized state backup directory");
+    }
+
+    Ok(())
 }
 
 /// Reads blocks from the provided non-finalized state backup directory path.
@@ -341,4 +374,80 @@ fn process_backup_dir_entry(entry: DirEntry) -> Option<(block::Hash, PathBuf)> {
     };
 
     Some((block_hash, entry.path()))
+}
+
+#[cfg(test)]
+mod cyphes_tests {
+    use zebra_chain::{block::genesis::genesis_block, parameters::Network};
+
+    use super::*;
+    use crate::{service::finalized_state::FinalizedState, Config};
+
+    fn backup_bytes(block: Arc<Block>) -> Vec<u8> {
+        NonFinalizedBlockBackup {
+            block,
+            deferred_pool_balance_change: Amount::zero(),
+        }
+        .as_bytes()
+    }
+
+    #[test]
+    fn backup_files_are_replaced_whole_and_leave_no_temporary_file() {
+        let dir = tempfile::tempdir().expect("temporary directory");
+        write_file_durably(dir.path(), "a", b"first").expect("write");
+        write_file_durably(dir.path(), "a", b"second").expect("overwrite");
+
+        assert_eq!(
+            std::fs::read(dir.path().join("a")).expect("read"),
+            b"second"
+        );
+        let names: Vec<_> = std::fs::read_dir(dir.path())
+            .expect("list")
+            .map(|entry| entry.expect("entry").file_name())
+            .collect();
+        assert_eq!(names, ["a"]);
+    }
+
+    #[test]
+    fn restore_skips_torn_backup_files_and_deletes_temporary_files() {
+        let network = Network::new_regtest(Default::default());
+        let finalized_state = FinalizedState::new(
+            &Config::ephemeral(),
+            &network,
+            #[cfg(feature = "elasticsearch")]
+            false,
+        )
+        .expect("ephemeral database");
+        let dir = tempfile::tempdir().expect("temporary directory");
+
+        // A complete backup file.
+        let whole = genesis_block(&Network::Mainnet);
+        let whole_name: String = whole.hash().encode_hex();
+        write_file_durably(dir.path(), &whole_name, &backup_bytes(whole.clone())).expect("write");
+
+        // A torn file, as a crash during a plain (non-atomic) write leaves it.
+        let torn = genesis_block(&Network::new_default_testnet());
+        let torn_bytes = backup_bytes(torn.clone());
+        let torn_name: String = torn.hash().encode_hex();
+        std::fs::write(
+            dir.path().join(torn_name),
+            &torn_bytes[..torn_bytes.len() / 2],
+        )
+        .expect("write torn file");
+
+        // A temporary file left by a crash during an atomic write.
+        let temp = dir.path().join(format!("{whole_name}.tmp"));
+        std::fs::write(&temp, &torn_bytes).expect("write temporary file");
+
+        let restored: Vec<_> =
+            read_non_finalized_blocks_from_backup(dir.path(), &finalized_state.db)
+                .map(|block| block.hash)
+                .collect();
+        assert_eq!(
+            restored,
+            vec![whole.hash()],
+            "only the complete block is restored"
+        );
+        assert!(!temp.exists(), "the temporary file is deleted");
+    }
 }

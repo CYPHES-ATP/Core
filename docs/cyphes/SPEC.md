@@ -74,7 +74,8 @@ Orchard-shaped receiver is a configuration error.
   change without a network upgrade. `cyphes-wallet` implements it by locking
   each coinbase note (a coinbase is always its block's first transaction)
   until `mined height + 99`, using librustzcash's input locks, so it becomes
-  spendable exactly at 100 confirmations.
+  spendable exactly at 100 confirmations. A mainnet wallet can raise the
+  policy but not lower it; test networks may lower it.
 
 ### Light wallets
 
@@ -212,13 +213,14 @@ network (a new chain's first node has no peers to download it from).
 |---|---|
 | **Deleted** | Equihash; Zcash genesis blocks and checkpoints (25,253 lines); founders' reward, funding-stream and lockbox constants; slow start; DigiShield difficulty and the testnet minimum-difficulty rule; the temporary Orchard soft fork; Zcash DNS seeders; transparent, Sprout, Sapling and legacy-Orchard transactions (by consensus rule; code removal is ongoing) |
 | **Kept** | Ironwood / Halo 2 / Pallas-Vesta (`orchard` 0.15.x, untouched); note commitments, nullifiers, viewing keys; Zebra's state, verification pipeline, P2P and the lightwalletd-compatible gRPC server |
-| **Added** | BeamHash III; LWMA-1; the CYPHES emission; new genesis, magic, ports, HRPs, branch ID; `cyphes-params` and `cyphes-pow` |
+| **Added** | BeamHash III; LWMA-1; the CYPHES emission; new genesis, magic, ports, HRPs, branch ID; `cyphes-params`, `cyphes-pow` and the `cyphes-wallet` CLI |
 
 ## 8. Known gaps (v1 is not done)
 
-1. **Money cycle not yet proven end to end.** The librustzcash fork is in
-   place (10 billion `MAX_MONEY`, CYPHES branch ID and prefixes), but no wallet
-   has yet received, spent, restored and rescanned CASH on a live chain.
+1. **Money cycle: proven on regtest.** `cyphes-wallet/tests/money_cycle.rs`
+   receives, spends, restores and reorganises CASH on live nodes, and the
+   node rejects double spends and broken value conservation
+   (`MONEY-CYCLE-REPORT.md`). Not yet run in CI.
 2. **Code removal.** Transparent, Sprout and Sapling are rejected by consensus
    but their code still compiles in. Removing it also removes the C++
    `zcash_script` dependency and Sapling's Groth16 parameters.

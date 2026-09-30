@@ -170,7 +170,14 @@ pub enum TransactionError {
     #[error("Sapling proof or signature verification failed")]
     SaplingVerificationFailed,
 
-    #[error("Orchard or Ironwood Halo2 proof verification failed")]
+    // CYPHES: the Orchard batch validator checks the Halo 2 proof, the spend
+    // authorization signatures and the binding signature together, so a
+    // failure cannot name one of them. The binding signature is what enforces
+    // value conservation.
+    #[error(
+        "Orchard or Ironwood bundle verification failed: invalid Halo 2 proof, spend \
+         authorization signature or binding signature (value balance)"
+    )]
     Halo2VerificationFailed,
 
     #[error("could not convert an asynchronous verification error: {0}")]

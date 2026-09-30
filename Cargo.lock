@@ -1247,6 +1247,7 @@ dependencies = [
  "clap",
  "cyphes-params",
  "hex",
+ "incrementalmerkletree",
  "jubjub",
  "orchard",
  "rand 0.8.6",
@@ -1264,6 +1265,8 @@ dependencies = [
  "zcash_keys",
  "zcash_primitives",
  "zcash_protocol",
+ "zebra-chain",
+ "zebra-rpc",
  "zip32",
 ]
 

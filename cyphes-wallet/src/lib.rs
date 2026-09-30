@@ -144,6 +144,23 @@ async fn birthday_at(
         .map_err(|e| err("account birthday", format!("{e:?}")))
 }
 
+/// Checks a coinbase confirmation policy for `network`: at least 1
+/// everywhere, and on mainnet at least the default
+/// [`cyphes_params::WALLET_COINBASE_CONFIRMATIONS`]. Mined value can vanish
+/// in a reorganisation, so a mainnet wallet never spends it sooner.
+pub fn check_coinbase_confirmations(network: Network, confirmations: u32) -> Result<()> {
+    let minimum = match network {
+        Network::Mainnet => cyphes_params::WALLET_COINBASE_CONFIRMATIONS,
+        Network::Testnet | Network::Regtest => 1,
+    };
+    if confirmations < minimum {
+        return Err(Error(format!(
+            "coinbase confirmations must be at least {minimum} on {network:?}"
+        )));
+    }
+    Ok(())
+}
+
 /// Parses a CASH amount such as `1000` or `0.00000001` into base units.
 pub fn parse_cash(amount: &str) -> Result<Zatoshis> {
     let bad = || Error(format!("invalid CASH amount {amount:?}"));
@@ -281,11 +298,10 @@ impl Wallet {
 
     /// Sets the confirmations coinbase notes need before they can be spent
     /// (default [`cyphes_params::WALLET_COINBASE_CONFIRMATIONS`]). This is
-    /// wallet policy, not consensus; lower it only on test networks.
+    /// wallet policy, not consensus. Test networks may lower it; mainnet may
+    /// only raise it (see [`check_coinbase_confirmations`]).
     pub fn set_coinbase_confirmations(&mut self, confirmations: u32) -> Result<()> {
-        if confirmations == 0 {
-            return Err(Error("coinbase confirmations must be at least 1".into()));
-        }
+        check_coinbase_confirmations(self.network, confirmations)?;
         self.coinbase_confirmations = confirmations;
         self.apply_coinbase_policy().map(|_| ())
     }
@@ -637,6 +653,27 @@ mod tests {
         assert_eq!(format_cash(25_000_000 * COIN + 1), "25000000.00000001");
         for bad in ["", ".", "1.000000001", "-1", "1e3", "10000000001"] {
             assert!(parse_cash(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn mainnet_coinbase_policy_can_only_be_raised() {
+        let default = cyphes_params::WALLET_COINBASE_CONFIRMATIONS;
+        for n in [0, 1, default - 1] {
+            assert!(
+                check_coinbase_confirmations(Network::Mainnet, n).is_err(),
+                "{n}"
+            );
+        }
+        for n in [default, default + 1] {
+            assert!(
+                check_coinbase_confirmations(Network::Mainnet, n).is_ok(),
+                "{n}"
+            );
+        }
+        for network in [Network::Testnet, Network::Regtest] {
+            assert!(check_coinbase_confirmations(network, 0).is_err());
+            assert!(check_coinbase_confirmations(network, 1).is_ok());
         }
     }
 

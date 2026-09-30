@@ -4,19 +4,24 @@
 //! CLI:
 //!
 //! 1. mine and receive: a wallet detects mined rewards and applies the
-//!    100-confirmation coinbase policy;
+//!    100-confirmation coinbase policy; the node rejects corrupted proof of
+//!    work, each for its specific reason;
 //! 2. spend: A pays B, and balances reconcile with change and fee;
 //! 3. restore: a fresh database restored from seed and birthday reproduces
-//!    the balance and history;
-//! 4. reorganisation: two nodes build competing branches, a payment is
-//!    orphaned, and wallets follow the winning chain and recover;
+//!    the balance and history; a node killed without warning, and one whose
+//!    newest backup file was torn, restart consistent;
+//! 4. reorganisation: two nodes build competing branches, and a payment that
+//!    was already spendable is orphaned; wallets mark it unmined, follow the
+//!    winning chain and recover;
 //! 5. invalid spends sent straight to the node, bypassing wallet checks:
-//!    double spend, unknown anchor, broken value conservation;
+//!    double spends in the mempool and in blocks mined with valid proof of
+//!    work, an unknown anchor, broken value conservation; each rejection is
+//!    checked for its specific reason;
 //! 6. above 21 million: a real mined note above 21 million CASH is
 //!    created, received and spent (on a regtest node configured with a
 //!    25 million CASH block subsidy).
 //!
-//! Every block is mined, so this takes about 40 minutes and needs about 10 GiB
+//! Every block is mined, so this takes about 30 minutes and needs about 10 GiB
 //! of RAM. Build the node first, then run it explicitly:
 //!
 //! ```sh
@@ -204,6 +209,60 @@ use_color = false
             }
             let _ = child.kill();
             let _ = child.wait();
+        }
+    }
+
+    /// Kills the node without warning (SIGKILL), as a crash would.
+    fn kill(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Where the node backs up its non-finalized blocks, one file per block.
+    fn backup_dir(&self) -> PathBuf {
+        self.dir.join("state/non_finalized_state/regtest")
+    }
+
+    fn log_len(&self) -> u64 {
+        fs::metadata(self.dir.join("zebrad.log"))
+            .map(|m| m.len())
+            .unwrap_or(0)
+    }
+
+    /// The node's log written since `from` (a [`Node::log_len`]).
+    fn log_since(&self, from: u64) -> String {
+        let log = fs::read(self.dir.join("zebrad.log")).unwrap_or_default();
+        String::from_utf8_lossy(&log[(from as usize).min(log.len())..]).into_owned()
+    }
+
+    /// Submits a block. Returns the RPC result and, if the node rejected the
+    /// block, the reason it logged.
+    fn submit_block(&self, block_hex: &str) -> (Value, String) {
+        let from = self.log_len();
+        let response = self.rpc("submitblock", json!([block_hex]));
+        if response.is_null() {
+            return (response, String::new());
+        }
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let log = self.log_since(from);
+            if let Some(line) = log.lines().find(|l| l.contains("submit block failed")) {
+                let reason = line.split_once("error=").map_or(line, |(_, r)| r);
+                // Drop the block hash and height the log repeats, and the
+                // network parameters some errors print in full.
+                let reason = reason.split(" block_hash=").next().unwrap_or(reason);
+                let reason = match reason.split_once(", Regtest {") {
+                    Some((head, _)) => format!("{head}, …)"),
+                    None => reason.to_string(),
+                };
+                return (response, reason.chars().take(300).collect());
+            }
+            if Instant::now() > deadline {
+                return (response, "(no reason logged)".into());
+            }
+            std::thread::sleep(Duration::from_millis(200));
         }
     }
 
@@ -450,6 +509,93 @@ fn wait_until(what: &str, timeout: Duration, mut done: impl FnMut() -> bool) {
     }
 }
 
+/// Builds a block on `node`'s tip holding `txs` (raw hex, fee), with a
+/// coinbase that claims exactly the block subsidy plus their fees, and
+/// solves its BeamHash III proof of work. The node has never seen these
+/// transactions: this is the block a dishonest miner would publish.
+fn craft_block(node: &Node, txs: &[(&str, u64)]) -> String {
+    use std::sync::Arc;
+    use zebra_chain::{
+        amount::{Amount, NonNegative},
+        block::{
+            merkle::{AuthDataRoot, Root},
+            ChainHistoryBlockTxAuthCommitmentHash, Height,
+        },
+        parameters::Network,
+        serialization::{BytesInDisplayOrder, ZcashDeserializeInto, ZcashSerialize},
+        transaction::Transaction,
+        work::beamhash::Solution,
+    };
+    use zebra_rpc::client::{BlockTemplateResponse, TransactionTemplate};
+
+    let network = Network::new_regtest(Default::default());
+    let template: BlockTemplateResponse =
+        serde_json::from_value(node.rpc("getblocktemplate", json!([]))).expect("block template");
+    let mut block = zebra_rpc::proposal_block_from_template(&template, None, &network)
+        .expect("block from template");
+
+    let miner = zebra_rpc::MinerParams::new(
+        &network,
+        zebra_rpc::config::mining::Config {
+            miner_address: Some(DEVNET_MINER.parse().expect("devnet address")),
+            ..Default::default()
+        },
+    )
+    .expect("miner parameters");
+    let fees =
+        Amount::<NonNegative>::try_from(txs.iter().map(|(_, fee)| fee).sum::<u64>()).expect("fees");
+    let coinbase =
+        TransactionTemplate::new_coinbase(&network, Height(template.height()), &miner, fees)
+            .expect("coinbase");
+    block.transactions = std::iter::once(coinbase.data().as_ref().to_vec())
+        .chain(txs.iter().map(|(raw, _)| hex::decode(raw).expect("hex")))
+        .map(|bytes| {
+            Arc::new(
+                bytes
+                    .as_slice()
+                    .zcash_deserialize_into::<Transaction>()
+                    .expect("transaction"),
+            )
+        })
+        .collect();
+
+    let mut header = *block.header;
+    header.merkle_root = block.transactions.iter().collect::<Root>();
+    let auth_data_root = block.transactions.iter().collect::<AuthDataRoot>();
+    header.commitment_bytes = ChainHistoryBlockTxAuthCommitmentHash::from_commitments(
+        &template.default_roots().chain_history_root(),
+        &auth_data_root,
+    )
+    .bytes_in_serialized_order()
+    .into();
+    let header = *Solution::solve(header, || Ok(())).expect("solve").first();
+    block.header = Arc::new(header);
+    hex::encode(block.zcash_serialize_to_vec().expect("serialize block"))
+}
+
+/// Whether the solution in a serialized block meets the block's target (the
+/// check made before BeamHash III itself is verified).
+fn solution_meets_target(block: &[u8]) -> bool {
+    use zebra_chain::{block::Header, serialization::ZcashDeserializeInto};
+    let header: Header = block.zcash_deserialize_into().expect("header");
+    header.solution.meets_threshold(
+        header
+            .difficulty_threshold
+            .to_expanded()
+            .expect("valid target"),
+    )
+}
+
+/// The height a wallet's history records for `txid`: `Some(Value::Null)`
+/// while unmined, `None` if the transaction is not in the history.
+fn mined_height(wallet: &Wallet, txid: &str) -> Option<Value> {
+    wallet
+        .history()
+        .into_iter()
+        .find(|t| t["txid"] == json!(txid))
+        .map(|t| t["mined_height"].clone())
+}
+
 #[test]
 #[ignore = "slow: mines ~150 real BeamHash III blocks; see the module docs"]
 fn money_cycle() {
@@ -563,22 +709,46 @@ fn money_cycle() {
     let block_hex = node1.rpc("getblock", json!([tip.to_string(), 0]));
     let block = hex::decode(block_hex.as_str().expect("block hex")).expect("hex");
     // Header: 108 bytes of fields, the 8-byte nonce, then the 104-byte solution.
-    for (what, at) in [
-        ("one bit of its BeamHash III solution", 150),
-        ("one bit of its nonce", 110),
-    ] {
+    // The node first checks that the solution's SHA-256 meets the target, then
+    // verifies BeamHash III. One flipped solution bit that still meets the
+    // target must fail BeamHash III itself.
+    let flipped = |bit: usize| {
         let mut mutated = block.clone();
-        mutated[at] ^= 1;
-        let response = node1.rpc("submitblock", json!([hex::encode(&mutated)]));
+        mutated[bit / 8] ^= 1 << (bit % 8);
+        mutated
+    };
+    let solution_bits = 116 * 8..220 * 8;
+    let under_target = solution_bits
+        .clone()
+        .find(|&bit| solution_meets_target(&flipped(bit)))
+        .expect("a flipped solution bit that still meets the target");
+    let over_target = solution_bits
+        .clone()
+        .find(|&bit| !solution_meets_target(&flipped(bit)))
+        .expect("a flipped solution bit that misses the target");
+    for (what, bit, reason_expected) in [
+        (
+            "a solution bit flipped (still under the target)",
+            under_target,
+            "ProofOfWork",
+        ),
+        (
+            "a solution bit flipped (now over the target)",
+            over_target,
+            "DifficultyFilter",
+        ),
+        ("a nonce bit flipped", 110 * 8, "ProofOfWork"),
+    ] {
+        let (response, reason) = node1.submit_block(&hex::encode(flipped(bit)));
         report.check(
-            response == json!("rejected"),
-            format!("a copy of block {tip} with {what} flipped is rejected ({response})"),
+            response == json!("rejected") && reason.contains(reason_expected),
+            format!("a copy of block {tip} with {what} is rejected as {reason_expected}: {reason}"),
         );
     }
-    let response = node1.rpc("submitblock", json!([block_hex]));
+    let (response, reason) = node1.submit_block(block_hex.as_str().expect("block hex"));
     report.check(
-        response == json!("duplicate"),
-        format!("the unmodified block is already on the chain ({response})"),
+        response == json!("duplicate") && reason.contains("AlreadyInChain"),
+        format!("the unmodified block is already on the chain ({response}): {reason}"),
     );
     report.check(node1.tip_hash() == tip_hash, "the chain tip is unchanged");
 
@@ -682,6 +852,65 @@ fn money_cycle() {
         ),
     );
 
+    // 3b. Crash recovery.
+    report.section("3b. Crash recovery");
+    node1.mine(1, DEVNET_MINER);
+    let (crash_height, crash_hash) = (node1.height(), node1.tip_hash());
+    node1.kill();
+    node1.start();
+    report.check(
+        node1.height() == crash_height && node1.tip_hash() == crash_hash,
+        format!(
+            "node 1, killed without warning (SIGKILL) right after mining block {crash_height}, \
+             restarts with that block"
+        ),
+    );
+    a.sync();
+    b.sync();
+    let (a_before_crash, b_before_crash) = (a.balance(), b.balance());
+
+    // A torn write: the newest block's backup file cut short, as a crash in
+    // the middle of a plain write would leave it, next to the temporary file
+    // an interrupted atomic write leaves.
+    node1.kill();
+    let backup = node1.backup_dir().join(&crash_hash);
+    report.check(
+        backup.exists(),
+        format!("block {crash_height} is in node 1's non-finalized block backup"),
+    );
+    let bytes = fs::read(&backup).expect("backup file");
+    fs::write(&backup, &bytes[..bytes.len() / 2]).expect("tear the backup file");
+    let temp = node1.backup_dir().join(format!("{crash_hash}.tmp"));
+    fs::write(&temp, &bytes).expect("leave a temporary file");
+    let from = node1.log_len();
+    node1.start();
+    report.check(
+        node1.height() == crash_height - 1,
+        format!(
+            "with block {crash_height}'s backup torn, node 1 restarts at height {} with every \
+             earlier block",
+            crash_height - 1
+        ),
+    );
+    report.check(
+        node1
+            .log_since(from)
+            .contains("failed to deserialize non-finalized backup data"),
+        "the node logs the torn file and skips it rather than failing to start",
+    );
+    report.check(!temp.exists(), "the leftover temporary file is deleted");
+    node1.mine(1, DEVNET_MINER);
+    a.sync();
+    b.sync();
+    report.check(
+        node1.height() == crash_height && node1.tip_hash() != crash_hash,
+        format!("node 1 mines a replacement block {crash_height}"),
+    );
+    report.check(
+        (a.balance(), b.balance()) == (a_before_crash, b_before_crash),
+        "the wallets, which had seen the lost block, follow the replacement with balances unchanged",
+    );
+
     // 4. Reorganisation across two nodes.
     report.section("4. Reorganisation");
     let mut node2 = Node::new(&root, "node2", 24_974, "");
@@ -701,13 +930,27 @@ fn money_cycle() {
     let (b_before, b_before_spendable, _, _) = b.balance();
     let (orphan_txid, orphan_fee, orphan_raw) =
         a.send(&b_addr, "777", &[]).expect("Alice pays Bob 777");
-    node1.mine(1, DEVNET_MINER);
+    // Ten confirmations: under ZIP 315 the payment becomes spendable, so the
+    // reorganisation below takes away money Bob could already spend.
+    node1.mine(10, DEVNET_MINER);
+    a.sync();
     b.sync();
-    let (b_with_payment, _, _, _) = b.balance();
+    let (b_with_payment, b_spendable_with_payment, _, _) = b.balance();
     report.check(
-        b_with_payment == b_before + 777 * COIN,
+        b_with_payment == b_before + 777 * COIN
+            && b_spendable_with_payment == b_before_spendable + 777 * COIN,
         format!(
-            "on node 1's branch Bob receives 777 CASH in block {} (`{orphan_txid}`)",
+            "on node 1's branch Bob receives 777 CASH in block {} (`{orphan_txid}`), and after \
+             10 confirmations can spend it: spendable {}",
+            fork_height + 1,
+            cash(b_spendable_with_payment)
+        ),
+    );
+    report.check(
+        mined_height(&b, &orphan_txid) == Some(json!(fork_height + 1))
+            && mined_height(&a, &orphan_txid) == Some(json!(fork_height + 1)),
+        format!(
+            "both wallets' histories record it as mined at height {}",
             fork_height + 1
         ),
     );
@@ -718,9 +961,9 @@ fn money_cycle() {
         node2.height() == fork_height,
         format!("node 2 restarts with its synced chain intact (height {fork_height})"),
     );
-    node2.mine(3, DEVNET_MINER);
+    node2.mine(12, DEVNET_MINER);
     report.line(format!(
-        "Node 2, alone, mines 3 blocks to height {}: a longer branch without the payment.",
+        "Node 2, alone, mines 12 blocks to height {}: a longer branch without the payment.",
         node2.height()
     ));
 
@@ -744,10 +987,10 @@ fn money_cycle() {
     node2.stop();
     node1.start();
     report.check(
-        node1.height() == fork_height + 1,
+        node1.height() == fork_height + 10,
         format!(
             "node 1 restarts with its branch intact (height {})",
-            fork_height + 1
+            fork_height + 10
         ),
     );
     let rejected = node1.try_rpc("sendrawtransaction", json!([anchor_raw]));
@@ -775,19 +1018,26 @@ fn money_cycle() {
         || node1.tip_hash() == node2.tip_hash(),
     );
     report.check(
-        node1.height() == fork_height + 3,
+        node1.height() == fork_height + 12,
         format!(
             "node 1 reorganises to node 2's longer branch (height {})",
             node1.height()
         ),
     );
+    a.sync();
     b.sync();
     let (b_total, b_spendable, b_pending, _) = b.balance();
     report.check(
+        mined_height(&b, &orphan_txid) == Some(Value::Null)
+            && mined_height(&a, &orphan_txid) == Some(Value::Null),
+        "both wallets' histories now record the orphaned payment as unmined",
+    );
+    report.check(
         b_spendable == b_before_spendable && b_total == b_before + b_pending,
         format!(
-            "Bob's wallet follows the reorganisation: the orphaned payment is no longer confirmed; \
-             spendable is back to {} CASH",
+            "Bob's spendable balance drops from {} back to {} CASH: the reorganisation removed \
+             a payment he could already spend",
+            cash(b_spendable_with_payment),
             cash(b_spendable)
         ),
     );
@@ -878,10 +1128,10 @@ fn money_cycle() {
     // 5. Invalid spends, straight to the node.
     report.section("5. Invalid spends rejected by the node");
     let twin = a.snapshot("alice-twin");
-    let (t1, _, t1_raw) = a
+    let (t1, t1_fee, t1_raw) = a
         .send(&b_addr, "100", &["--no-broadcast"])
         .expect("build t1");
-    let (t2, _, t2_raw) = twin
+    let (t2, t2_fee, t2_raw) = twin
         .send(&b_addr, "200", &["--no-broadcast"])
         .expect("build t2");
     let shared: Vec<_> = nullifiers(&t1_raw)
@@ -892,22 +1142,62 @@ fn money_cycle() {
         !shared.is_empty(),
         format!("two copies of Alice's wallet build `{t1}` and `{t2}`, spending the same note"),
     );
-    node1.rpc("sendrawtransaction", json!([t1_raw]));
-    let mempool_conflict = node1.try_rpc("sendrawtransaction", json!([t2_raw]));
+
+    // A dishonest miner puts both in one block, with valid proof of work.
+    let tip = node1.tip_hash();
+    let (response, reason) = node1.submit_block(&craft_block(
+        &node1,
+        &[(&t1_raw, t1_fee), (&t2_raw, t2_fee)],
+    ));
     report.check(
-        mempool_conflict.is_err(),
-        format!(
-            "with the first in the mempool, the node rejects the second: {}",
-            mempool_conflict.err().unwrap_or_default()
-        ),
+        response == json!("rejected") && reason.contains("DuplicateIronwoodNullifier"),
+        format!("a mined block holding both is rejected for the duplicate nullifier: {reason}"),
+    );
+    report.check(node1.tip_hash() == tip, "the chain tip is unchanged");
+
+    node1.rpc("sendrawtransaction", json!([t1_raw]));
+    let mempool_conflict = node1
+        .try_rpc("sendrawtransaction", json!([t2_raw]))
+        .err()
+        .unwrap_or_default();
+    report.check(
+        mempool_conflict.contains("already spent some of its inputs"),
+        format!("with the first in the mempool, the node rejects the second: {mempool_conflict}"),
     );
     node1.mine(1, DEVNET_MINER);
-    let chain_conflict = node1.try_rpc("sendrawtransaction", json!([t2_raw]));
     report.check(
-        chain_conflict.is_err(),
+        node1.rpc("getrawtransaction", json!([t1, 1]))["height"] == json!(node1.height()),
+        format!("the first is mined in block {}", node1.height()),
+    );
+    let chain_conflict = node1
+        .try_rpc("sendrawtransaction", json!([t2_raw]))
+        .err()
+        .unwrap_or_default();
+    report.check(
+        chain_conflict.contains("ironwood double-spend: duplicate nullifier"),
+        format!("once the first is mined, the node rejects the second: {chain_conflict}"),
+    );
+
+    // The dishonest miner tries again, spending the note in a new block.
+    let tip = node1.tip_hash();
+    let (response, reason) = node1.submit_block(&craft_block(&node1, &[(&t2_raw, t2_fee)]));
+    report.check(
+        response == json!("rejected") && reason.contains("DuplicateIronwoodNullifier"),
         format!(
-            "once the first is mined, the node still rejects the second: {}",
-            chain_conflict.err().unwrap_or_default()
+            "a mined block spending the note again is rejected for the duplicate nullifier: {reason}"
+        ),
+    );
+    report.check(node1.tip_hash() == tip, "the chain tip is unchanged");
+
+    // Control: the same construction without a double spend is a valid block,
+    // so the two rejections above are for the double spends alone.
+    let height = node1.height();
+    let (response, _) = node1.submit_block(&craft_block(&node1, &[]));
+    report.check(
+        response.is_null() && node1.height() == height + 1,
+        format!(
+            "control: a block built the same way without the double spend is accepted as block {}",
+            height + 1
         ),
     );
 
@@ -930,12 +1220,18 @@ fn money_cycle() {
     );
     let inflated = t3_fee as i64 + (1_000 * COIN) as i64;
     raw[at[0]..at[0] + 8].copy_from_slice(&inflated.to_le_bytes());
-    let conservation = node1.try_rpc("sendrawtransaction", json!([hex::encode(&raw)]));
+    let conservation = node1
+        .try_rpc("sendrawtransaction", json!([hex::encode(&raw)]))
+        .err()
+        .unwrap_or_default();
+    // The value balance is signed over by the binding signature, which is what
+    // enforces value conservation; the node checks it with the proof and the
+    // spend signatures in one batch, so its error names all three.
     report.check(
-        conservation.is_err(),
+        conservation.contains("binding signature (value balance)"),
         format!(
-            "a copy of `{t3}` claiming 1000 CASH more out of the pool than its notes hold is rejected: {}",
-            conservation.err().unwrap_or_default()
+            "a copy of `{t3}` claiming 1000 CASH more out of the pool than its notes hold is \
+             rejected by bundle verification: {conservation}"
         ),
     );
     drop(node2);
@@ -958,7 +1254,9 @@ fn money_cycle() {
     let la = large_a.init();
     let lb = large_b.init();
     report.line(
-        "A regtest node configured with `block_subsidy = 25000000` (a regtest-only test setting).",
+        "A regtest node configured with `block_subsidy = 25000000` (a regtest-only test setting). \
+         These two wallets use a 3-confirmation coinbase policy to keep the section short; \
+         section 1 proves the default of 100.",
     );
     node3.mine(1, &la);
     // Coinbase notes also need ZIP 315's 10 confirmations for received value.
