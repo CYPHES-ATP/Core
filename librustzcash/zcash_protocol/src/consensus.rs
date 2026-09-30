@@ -489,17 +489,19 @@ impl Parameters for MainNetwork {
     }
 
     fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+        // CYPHES: no upgrade history. Every Zcash upgrade through NU6.3
+        // (Ironwood) is in force from block 1.
         match nu {
-            NetworkUpgrade::Overwinter => Some(BlockHeight(347_500)),
-            NetworkUpgrade::Sapling => Some(BlockHeight(419_200)),
-            NetworkUpgrade::Blossom => Some(BlockHeight(653_600)),
-            NetworkUpgrade::Heartwood => Some(BlockHeight(903_000)),
-            NetworkUpgrade::Canopy => Some(BlockHeight(1_046_400)),
-            NetworkUpgrade::Nu5 => Some(BlockHeight(1_687_104)),
-            NetworkUpgrade::Nu6 => Some(BlockHeight(2_726_400)),
-            NetworkUpgrade::Nu6_1 => Some(BlockHeight(3_146_400)),
-            NetworkUpgrade::Nu6_2 => Some(BlockHeight(3_364_600)),
-            NetworkUpgrade::Nu6_3 => Some(BlockHeight(3_428_143)),
+            NetworkUpgrade::Overwinter
+            | NetworkUpgrade::Sapling
+            | NetworkUpgrade::Blossom
+            | NetworkUpgrade::Heartwood
+            | NetworkUpgrade::Canopy
+            | NetworkUpgrade::Nu5
+            | NetworkUpgrade::Nu6
+            | NetworkUpgrade::Nu6_1
+            | NetworkUpgrade::Nu6_2
+            | NetworkUpgrade::Nu6_3 => Some(BlockHeight(1)),
             #[cfg(zcash_unstable = "nu7")]
             NetworkUpgrade::Nu7 => None,
         }
@@ -522,17 +524,19 @@ impl Parameters for TestNetwork {
     }
 
     fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+        // CYPHES: no upgrade history. Every Zcash upgrade through NU6.3
+        // (Ironwood) is in force from block 1.
         match nu {
-            NetworkUpgrade::Overwinter => Some(BlockHeight(207_500)),
-            NetworkUpgrade::Sapling => Some(BlockHeight(280_000)),
-            NetworkUpgrade::Blossom => Some(BlockHeight(584_000)),
-            NetworkUpgrade::Heartwood => Some(BlockHeight(903_800)),
-            NetworkUpgrade::Canopy => Some(BlockHeight(1_028_500)),
-            NetworkUpgrade::Nu5 => Some(BlockHeight(1_842_420)),
-            NetworkUpgrade::Nu6 => Some(BlockHeight(2_976_000)),
-            NetworkUpgrade::Nu6_1 => Some(BlockHeight(3_536_500)),
-            NetworkUpgrade::Nu6_2 => Some(BlockHeight(4_052_000)),
-            NetworkUpgrade::Nu6_3 => Some(BlockHeight(4_134_000)),
+            NetworkUpgrade::Overwinter
+            | NetworkUpgrade::Sapling
+            | NetworkUpgrade::Blossom
+            | NetworkUpgrade::Heartwood
+            | NetworkUpgrade::Canopy
+            | NetworkUpgrade::Nu5
+            | NetworkUpgrade::Nu6
+            | NetworkUpgrade::Nu6_1
+            | NetworkUpgrade::Nu6_2
+            | NetworkUpgrade::Nu6_3 => Some(BlockHeight(1)),
             #[cfg(zcash_unstable = "nu7")]
             NetworkUpgrade::Nu7 => None,
         }
@@ -755,7 +759,8 @@ impl TryFrom<u32> for BranchId {
             0xc8e7_1055 => Ok(BranchId::Nu6),
             0x4dec_4df0 => Ok(BranchId::Nu6_1),
             0x5437_f330 => Ok(BranchId::Nu6_2),
-            0x37a5_165b => Ok(BranchId::Nu6_3),
+            // CYPHES v1 (`cyphes_params::network::CONSENSUS_BRANCH_ID_V1`).
+            0x4535_c5e0 => Ok(BranchId::Nu6_3),
             #[cfg(zcash_unstable = "nu7")]
             0xffff_ffff => Ok(BranchId::Nu7),
             _ => Err("Unknown consensus branch ID"),
@@ -776,7 +781,7 @@ impl From<BranchId> for u32 {
             BranchId::Nu6 => 0xc8e7_1055,
             BranchId::Nu6_1 => 0x4dec_4df0,
             BranchId::Nu6_2 => 0x5437_f330,
-            BranchId::Nu6_3 => 0x37a5_165b,
+            BranchId::Nu6_3 => 0x4535_c5e0,
             #[cfg(zcash_unstable = "nu7")]
             BranchId::Nu7 => 0xffff_ffff,
         }
@@ -1049,7 +1054,8 @@ mod tests {
                 MAIN_NETWORK.activation_height(nu_a),
                 MAIN_NETWORK.activation_height(nu_b),
             ) {
-                (Some(a), Some(b)) if a < b => (),
+                // CYPHES activates every upgrade at height 1.
+                (Some(a), Some(b)) if a <= b => (),
                 (Some(_), None) => (),
                 (None, None) => (),
                 _ => panic!(
@@ -1062,9 +1068,12 @@ mod tests {
 
     #[test]
     fn nu_is_active() {
-        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(0)));
-        assert!(!MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_499)));
-        assert!(MAIN_NETWORK.is_nu_active(NetworkUpgrade::Overwinter, BlockHeight(347_500)));
+        for network in [super::Network::MainNetwork, super::Network::TestNetwork] {
+            for nu in [NetworkUpgrade::Overwinter, NetworkUpgrade::Nu6_3] {
+                assert!(!network.is_nu_active(nu, BlockHeight(0)));
+                assert!(network.is_nu_active(nu, BlockHeight(1)));
+            }
+        }
     }
 
     #[test]
@@ -1103,61 +1112,24 @@ mod tests {
 
     #[test]
     fn branch_id_for_height() {
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(0)),
-            BranchId::Sprout,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_199)),
-            BranchId::Overwinter,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(419_200)),
-            BranchId::Sapling,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(903_000)),
-            BranchId::Heartwood,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(1_046_400)),
-            BranchId::Canopy,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(1_687_104)),
-            BranchId::Nu5,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(2_726_399)),
-            BranchId::Nu5,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(2_726_400)),
-            BranchId::Nu6,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(3_146_400)),
-            BranchId::Nu6_1,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(3_364_599)),
-            BranchId::Nu6_1,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(3_364_600)),
-            BranchId::Nu6_2,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(3_428_142)),
-            BranchId::Nu6_2,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(3_428_143)),
-            BranchId::Nu6_3,
-        );
-        assert_eq!(
-            BranchId::for_height(&MAIN_NETWORK, BlockHeight(5_000_000)),
-            BranchId::Nu6_3,
+        // Genesis predates every upgrade; the CYPHES v1 rules apply from block 1.
+        for network in [super::Network::MainNetwork, super::Network::TestNetwork] {
+            assert_eq!(
+                BranchId::for_height(&network, BlockHeight(0)),
+                BranchId::Sprout
+            );
+            for height in [1, 2, 5_000_000, 184_999_999] {
+                assert_eq!(
+                    BranchId::for_height(&network, BlockHeight(height)),
+                    BranchId::Nu6_3,
+                );
+            }
+        }
+        assert_eq!(u32::from(BranchId::Nu6_3), 0x4535_c5e0);
+        assert_eq!(BranchId::try_from(0x4535_c5e0), Ok(BranchId::Nu6_3));
+        assert!(
+            BranchId::try_from(0x37a5_165b).is_err(),
+            "Zcash's NU6.3 branch ID"
         );
     }
 }

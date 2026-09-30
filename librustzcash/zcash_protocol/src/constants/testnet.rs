@@ -1,6 +1,11 @@
-//! Constants for the Zcash test network.
+//! Constants for the CYPHES test network.
+//!
+//! CYPHES fork: every prefix and HRP differs from Zcash's, so no Zcash address
+//! or key parses as a CYPHES one. CYPHES only uses unified addresses with an
+//! Ironwood receiver; the Sapling, Sprout and transparent encodings exist
+//! because other librustzcash crates reference them.
 
-/// The testnet coin type for ZEC, as defined by [SLIP 44].
+/// The testnet coin type, as defined by [SLIP 44].
 ///
 /// [SLIP 44]: https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 pub const COIN_TYPE: u32 = 1;
@@ -11,7 +16,7 @@ pub const COIN_TYPE: u32 = 1;
 ///
 /// [`ExtendedSpendingKey`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/zip32/struct.ExtendedSpendingKey.html
 /// [ZIP 32]: https://github.com/zcash/zips/blob/main/zips/zip-0032.rst
-pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-test";
+pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-cyphes-test";
 
 /// The HRP for a Bech32-encoded testnet Sapling [`ExtendedFullViewingKey`].
 ///
@@ -19,7 +24,7 @@ pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-test";
 ///
 /// [`ExtendedFullViewingKey`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/zip32/struct.ExtendedFullViewingKey.html
 /// [ZIP 32]: https://github.com/zcash/zips/blob/main/zips/zip-0032.rst
-pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "zxviewtestsapling";
+pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "cyphxviewtestsapling";
 
 /// The HRP for a Bech32-encoded testnet Sapling [`PaymentAddress`].
 ///
@@ -27,14 +32,14 @@ pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "zxviewtestsapling";
 ///
 /// [`PaymentAddress`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/struct.PaymentAddress.html
 /// [Zcash Protocol Specification]: https://github.com/zcash/zips/blob/main/rendered/protocol/protocol.pdf
-pub const HRP_SAPLING_PAYMENT_ADDRESS: &str = "ztestsapling";
+pub const HRP_SAPLING_PAYMENT_ADDRESS: &str = "cyphtestsapling";
 
 /// The prefix for a Base58Check-encoded testnet Sprout address.
 ///
 /// Defined in the [Zcash Protocol Specification section 5.6.3][sproutpaymentaddrencoding].
 ///
 /// [sproutpaymentaddrencoding]: https://zips.z.cash/protocol/protocol.pdf#sproutpaymentaddrencoding
-pub const B58_SPROUT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0xb6];
+pub const B58_SPROUT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0x72];
 
 /// The prefix for a Base58Check-encoded DER-encoded testnet [`SecretKey`], as specified via the
 /// bitcoin-derived [`EncodeSecret`] format function.
@@ -46,35 +51,35 @@ pub const B58_SECRET_KEY_PREFIX: [u8; 1] = [0xef];
 /// The prefix for a Base58Check-encoded testnet transparent [`PublicKeyHash`].
 ///
 /// [`PublicKeyHash`]: https://docs.rs/zcash_primitives/latest/zcash_primitives/legacy/enum.TransparentAddress.html
-pub const B58_PUBKEY_ADDRESS_PREFIX: [u8; 2] = [0x1d, 0x25];
+pub const B58_PUBKEY_ADDRESS_PREFIX: [u8; 2] = [0x1d, 0x45];
 
 /// The prefix for a Base58Check-encoded testnet transparent [`ScriptHash`].
 ///
 /// [`ScriptHash`]: https://docs.rs/zcash_primitives/latest/zcash_primitives/legacy/enum.TransparentAddress.html
-pub const B58_SCRIPT_ADDRESS_PREFIX: [u8; 2] = [0x1c, 0xba];
+pub const B58_SCRIPT_ADDRESS_PREFIX: [u8; 2] = [0x1c, 0x5a];
 
 /// The HRP for a Bech32m-encoded testnet [ZIP 320] TEX address.
 ///
 /// [ZIP 320]: https://zips.z.cash/zip-0320
-pub const HRP_TEX_ADDRESS: &str = "textest";
+pub const HRP_TEX_ADDRESS: &str = "cyphtextest";
 
 /// The HRP for a Bech32m-encoded testnet Unified Address.
 ///
 /// Defined in [ZIP 316][zip-0316].
 ///
 /// [zip-0316]: https://zips.z.cash/zip-0316
-pub const HRP_UNIFIED_ADDRESS: &str = "utest";
+pub const HRP_UNIFIED_ADDRESS: &str = "cyphtest";
 
 /// The HRP for a Bech32m-encoded testnet Unified FVK.
 ///
 /// Defined in [ZIP 316][zip-0316].
 ///
 /// [zip-0316]: https://zips.z.cash/zip-0316
-pub const HRP_UNIFIED_FVK: &str = "uviewtest";
+pub const HRP_UNIFIED_FVK: &str = "cyphviewtest";
 
 /// The HRP for a Bech32m-encoded testnet Unified IVK.
 ///
 /// Defined in [ZIP 316][zip-0316].
 ///
 /// [zip-0316]: https://zips.z.cash/zip-0316
-pub const HRP_UNIFIED_IVK: &str = "uivktest";
+pub const HRP_UNIFIED_IVK: &str = "cyphivktest";

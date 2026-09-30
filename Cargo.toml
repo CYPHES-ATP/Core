@@ -14,6 +14,7 @@ members = [
         "tower-fallback",
         "cyphes-pow",
         "cyphes-params",
+        "librustzcash/zcash_protocol",
 ]
 
 # Use the edition 2021 dependency resolver in the workspace, to match the crates
@@ -384,3 +385,10 @@ unwrap_in_result = "warn"
 
 # TODOs: fix this lint eventually
 result_large_err = "allow"
+
+# CYPHES: the librustzcash fork. `zcash_protocol` carries every CYPHES network
+# constant (address prefixes, coin type, branch ID, activation heights,
+# MAX_MONEY); all other librustzcash crates, and `orchard`, are unmodified.
+# See librustzcash/README.md.
+[patch.crates-io]
+zcash_protocol = { path = "librustzcash/zcash_protocol" }

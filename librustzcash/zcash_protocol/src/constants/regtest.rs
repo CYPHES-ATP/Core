@@ -1,10 +1,9 @@
-//! # Regtest constants
+//! Constants for the CYPHES regression test network.
 //!
-//! `regtest` is a `zcashd`-specific environment used for local testing. They mostly reuse
-//! the testnet constants.
-//! These constants are defined in [the `zcashd` codebase].
-//!
-//! [the `zcashd` codebase]: <https://github.com/zcash/zcash/blob/128d863fb8be39ee294fda397c1ce3ba3b889cb2/src/chainparams.cpp#L482-L496>
+//! CYPHES fork: every prefix and HRP differs from Zcash's, so no Zcash address
+//! or key parses as a CYPHES one. CYPHES only uses unified addresses with an
+//! Ironwood receiver; the Sapling, Sprout and transparent encodings exist
+//! because other librustzcash crates reference them.
 
 /// The regtest cointype reuses the testnet cointype
 pub const COIN_TYPE: u32 = 1;
@@ -15,7 +14,7 @@ pub const COIN_TYPE: u32 = 1;
 ///
 /// [`ExtendedSpendingKey`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/zip32/struct.ExtendedSpendingKey.html
 /// [the `zcashd` codebase]: <https://github.com/zcash/zcash/blob/128d863fb8be39ee294fda397c1ce3ba3b889cb2/src/chainparams.cpp#L496>
-pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-regtest";
+pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-cyphes-regtest";
 
 /// The HRP for a Bech32-encoded regtest Sapling [`ExtendedFullViewingKey`].
 ///
@@ -23,7 +22,7 @@ pub const HRP_SAPLING_EXTENDED_SPENDING_KEY: &str = "secret-extended-key-regtest
 ///
 /// [`ExtendedFullViewingKey`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/zip32/struct.ExtendedFullViewingKey.html
 /// [the `zcashd` codebase]: <https://github.com/zcash/zcash/blob/128d863fb8be39ee294fda397c1ce3ba3b889cb2/src/chainparams.cpp#L494>
-pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "zxviewregtestsapling";
+pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "cyphxviewregtestsapling";
 
 /// The HRP for a Bech32-encoded regtest Sapling [`PaymentAddress`].
 ///
@@ -31,7 +30,7 @@ pub const HRP_SAPLING_EXTENDED_FULL_VIEWING_KEY: &str = "zxviewregtestsapling";
 ///
 /// [`PaymentAddress`]: https://docs.rs/sapling-crypto/latest/sapling_crypto/struct.PaymentAddress.html
 /// [the `zcashd` codebase]: <https://github.com/zcash/zcash/blob/128d863fb8be39ee294fda397c1ce3ba3b889cb2/src/chainparams.cpp#L493>
-pub const HRP_SAPLING_PAYMENT_ADDRESS: &str = "zregtestsapling";
+pub const HRP_SAPLING_PAYMENT_ADDRESS: &str = "cyphregtestsapling";
 
 /// The prefix for a Base58Check-encoded regtest Sprout address.
 ///
@@ -39,7 +38,7 @@ pub const HRP_SAPLING_PAYMENT_ADDRESS: &str = "zregtestsapling";
 /// Same as the testnet prefix.
 ///
 /// [sproutpaymentaddrencoding]: https://zips.z.cash/protocol/protocol.pdf#sproutpaymentaddrencoding
-pub const B58_SPROUT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0xb6];
+pub const B58_SPROUT_ADDRESS_PREFIX: [u8; 2] = [0x16, 0x72];
 
 /// The prefix for a Base58Check-encoded DER-encoded regtest [`SecretKey`], as specified via the
 /// bitcoin-derived [`EncodeSecret`] format function.
@@ -52,28 +51,28 @@ pub const B58_SECRET_KEY_PREFIX: [u8; 1] = [0xef];
 /// Same as the testnet prefix.
 ///
 /// [`PublicKeyHash`]: https://docs.rs/zcash_primitives/latest/zcash_primitives/legacy/enum.TransparentAddress.html
-pub const B58_PUBKEY_ADDRESS_PREFIX: [u8; 2] = [0x1d, 0x25];
+pub const B58_PUBKEY_ADDRESS_PREFIX: [u8; 2] = [0x1d, 0x45];
 
 /// The prefix for a Base58Check-encoded regtest transparent [`ScriptHash`].
 /// Same as the testnet prefix.
 ///
 /// [`ScriptHash`]: https://docs.rs/zcash_primitives/latest/zcash_primitives/legacy/enum.TransparentAddress.html
-pub const B58_SCRIPT_ADDRESS_PREFIX: [u8; 2] = [0x1c, 0xba];
+pub const B58_SCRIPT_ADDRESS_PREFIX: [u8; 2] = [0x1c, 0x5a];
 
 /// The HRP for a Bech32m-encoded regtest [ZIP 320] TEX address.
 ///
 /// [ZIP 320]: https://zips.z.cash/zip-0320
-pub const HRP_TEX_ADDRESS: &str = "texregtest";
+pub const HRP_TEX_ADDRESS: &str = "cyphtexregtest";
 
 /// The HRP for a Bech32m-encoded regtest Unified Address.
 ///
 /// Defined in [ZIP 316][zip-0316].
 ///
 /// [zip-0316]: https://zips.z.cash/zip-0316
-pub const HRP_UNIFIED_ADDRESS: &str = "uregtest";
+pub const HRP_UNIFIED_ADDRESS: &str = "cyphregtest";
 
 /// The HRP for a Bech32m-encoded regtest Unified FVK.
-pub const HRP_UNIFIED_FVK: &str = "uviewregtest";
+pub const HRP_UNIFIED_FVK: &str = "cyphviewregtest";
 
 /// The HRP for a Bech32m-encoded regtest Unified IVK.
-pub const HRP_UNIFIED_IVK: &str = "uivkregtest";
+pub const HRP_UNIFIED_IVK: &str = "cyphivkregtest";
