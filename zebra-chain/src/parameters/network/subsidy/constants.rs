@@ -1,17 +1,9 @@
 //! Constants for block subsidies.
 
-pub(crate) mod mainnet;
 pub(crate) mod regtest;
 pub(crate) mod testnet;
 
-use crate::amount::COIN;
 use crate::block::HeightDiff;
-
-/// The largest block subsidy, used before the first halving.
-///
-/// We use `25 / 2` instead of `12.5`, so that we can calculate the correct value without using floating-point.
-/// This calculation is exact, because COIN is divisible by 2, and the division is done last.
-pub(crate) const MAX_BLOCK_SUBSIDY: u64 = ((25 * COIN) / 2) as u64;
 
 /// Used as a multiplier to get the new halving interval after Blossom.
 ///

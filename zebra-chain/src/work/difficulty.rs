@@ -724,24 +724,16 @@ impl ParameterDifficulty for Network {
     /// Returns the easiest target difficulty allowed on `network`.
     /// See [`ParameterDifficulty::target_difficulty_limit`]
     fn target_difficulty_limit(&self) -> ExpandedDifficulty {
-        let limit: U256 = match self {
-            // Mainnet PoWLimit is defined as `2^243 - 1` on page 73 of the protocol specification:
-            // <https://zips.z.cash/protocol/protocol.pdf>
-            Network::Mainnet => (U256::one() << 243) - 1,
-            // 2^251 - 1 for the default testnet, see `testnet::ParametersBuilder::default`()
-            Network::Testnet(params) => return params.target_difficulty_limit(),
-        };
-
-        // `zcashd` converts the PoWLimit into a compact representation before
-        // using it to perform difficulty filter checks.
-        //
-        // The Zcash specification converts to compact for the default difficulty
-        // filter, but not for testnet minimum difficulty blocks. (ZIP 205 and
-        // ZIP 208 don't specify this conversion either.) See #1277 for details.
-        ExpandedDifficulty(limit)
-            .to_compact()
-            .to_expanded()
-            .expect("difficulty limits are valid expanded values")
+        match self {
+            // CYPHES mainnet PoWLimit: compact 0x2000ffff, so one valid BeamHash III
+            // solution in 256 meets it. See `cyphes_params::network::MAINNET`.
+            Network::Mainnet => {
+                CompactDifficulty(cyphes_params::network::MAINNET.pow_limit_compact)
+                    .to_expanded()
+                    .expect("difficulty limits are valid expanded values")
+            }
+            Network::Testnet(params) => params.target_difficulty_limit(),
+        }
     }
 }
 

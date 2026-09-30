@@ -471,11 +471,8 @@ fn check_configured_funding_stream_constraints() {
                 recipients: Some(vec![ConfiguredFundingStreamRecipient {
                     receiver: FundingStreamReceiver::Ecc,
                     numerator: 10,
-                    addresses: Some(
-                        subsidy::constants::mainnet::FUNDING_STREAM_ECC_ADDRESSES
-                            .map(Into::into)
-                            .to_vec(),
-                    ),
+                    // A Zcash mainnet transparent address.
+                    addresses: Some(vec!["t3LmX1cxWPPPqL4TZHx42HU3U5ghbFjRiif".into()]),
                 }]),
                 ..Default::default()
             }])

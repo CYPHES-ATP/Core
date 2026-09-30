@@ -17,16 +17,14 @@ use crate::{
 
 use super::{Input, OutPoint, Output, Script};
 
-/// The coinbase data for a genesis block.
+/// The coinbase script for a genesis block: a single 64-byte push of the
+/// launch message. It carries no block height.
 ///
-/// Zcash uses the same coinbase data for the Mainnet, Testnet, and Regtest
-/// genesis blocks.
-pub const GENESIS_COINBASE_SCRIPT_SIG: [u8; 77] = [
-    4, 255, 255, 7, 31, 1, 4, 69, 90, 99, 97, 115, 104, 48, 98, 57, 99, 52, 101, 101, 102, 56, 98,
-    55, 99, 99, 52, 49, 55, 101, 101, 53, 48, 48, 49, 101, 51, 53, 48, 48, 57, 56, 52, 98, 54, 102,
-    101, 97, 51, 53, 54, 56, 51, 97, 55, 99, 97, 99, 49, 52, 49, 97, 48, 52, 51, 99, 52, 50, 48,
-    54, 52, 56, 51, 53, 100, 51, 52,
-];
+/// CYPHES uses the same genesis coinbase on every network. Before mainnet
+/// launch, the message will also commit to a recent Bitcoin block hash, as
+/// public evidence that nothing was mined before that time.
+pub const GENESIS_COINBASE_SCRIPT_SIG: [u8; 65] =
+    *b"\x40CYPHES 2026-09-30 Private money. Mined into existence by anyone.";
 
 /// Parses the BIP-34 block-height prefix of a non-genesis coinbase script and returns the height
 /// along with the trailing miner data. Also enforces the coinbase script length bound, since

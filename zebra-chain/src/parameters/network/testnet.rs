@@ -11,7 +11,6 @@ use crate::{
         network::error::ParametersBuilderError,
         network_upgrade::TESTNET_ACTIVATION_HEIGHTS,
         subsidy::{
-            constants::mainnet,
             constants::testnet,
             constants::{
                 BLOSSOM_POW_TARGET_SPACING_RATIO, FUNDING_STREAM_RECEIVER_DENOMINATOR,
@@ -23,7 +22,7 @@ use crate::{
         Network, NetworkKind, NetworkUpgrade,
     },
     transparent,
-    work::difficulty::{ExpandedDifficulty, U256},
+    work::difficulty::{CompactDifficulty, ExpandedDifficulty},
 };
 
 use super::magic::Magic;
@@ -44,9 +43,9 @@ pub const MAX_NETWORK_NAME_LENGTH: usize = 30;
 /// Maximum length for a configured human-readable prefix.
 pub const MAX_HRP_LENGTH: usize = 30;
 
-/// The block hash of the Regtest genesis block, `zcash-cli -regtest getblockhash 0`
+/// The block hash of the CYPHES Regtest genesis block, see `block::genesis`.
 const REGTEST_GENESIS_HASH: &str =
-    "029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327";
+    "5627d4e9cc60cfca84fc5e15ab22b6a7332c8be2b210ef25c158e65b62421b53";
 
 /// The block hash of the Testnet genesis block, `zcash-cli -testnet getblockhash 0`
 const TESTNET_GENESIS_HASH: &str =
@@ -400,11 +399,17 @@ impl ConfiguredActivationHeights {
             zfuture,
         } = self;
 
+        // CYPHES: every upgrade through NU6.3 (Ironwood) defaults to height 1.
         let overwinter = overwinter.or(before_overwinter).or(Some(1));
         let sapling = sapling.or(overwinter);
         let blossom = blossom.or(sapling);
         let heartwood = heartwood.or(blossom);
         let canopy = canopy.or(heartwood);
+        let nu5 = nu5.or(canopy);
+        let nu6 = nu6.or(nu5);
+        let nu6_1 = nu6_1.or(nu6);
+        let nu6_2 = nu6_2.or(nu6_1);
+        let nu6_3 = nu6_3.or(nu6_2);
 
         Self {
             before_overwinter,
@@ -507,29 +512,24 @@ impl Default for ParametersBuilder {
                 .parse()
                 .expect("hard-coded hash parses"),
             slow_start_interval: SLOW_START_INTERVAL,
-            // Testnet PoWLimit is defined as `2^251 - 1` on page 73 of the protocol specification:
-            // <https://zips.z.cash/protocol/protocol.pdf>
-            //
-            // The PoWLimit must be converted into a compact representation before using it
-            // to perform difficulty filter checks (see https://github.com/zcash/zips/pull/417).
-            target_difficulty_limit: ExpandedDifficulty::from((U256::one() << 251) - 1)
-                .to_compact()
-                .to_expanded()
-                .expect("difficulty limits are valid expanded values"),
+            // CYPHES testnet PoWLimit, see `cyphes_params::network::TESTNET`.
+            target_difficulty_limit: CompactDifficulty(
+                cyphes_params::network::TESTNET.pow_limit_compact,
+            )
+            .to_expanded()
+            .expect("difficulty limits are valid expanded values"),
             disable_pow: false,
-            funding_streams: testnet::FUNDING_STREAMS.clone(),
+            // CYPHES has no funding streams.
+            funding_streams: Vec::new(),
             should_lock_funding_stream_address_period: false,
             pre_blossom_halving_interval: PRE_BLOSSOM_HALVING_INTERVAL,
             post_blossom_halving_interval: POST_BLOSSOM_HALVING_INTERVAL,
             should_allow_unshielded_coinbase_spends: false,
-            lockbox_disbursements: testnet::NU6_1_LOCKBOX_DISBURSEMENTS
-                .iter()
-                .map(|(addr, amount)| (addr.to_string(), *amount))
-                .collect(),
+            // CYPHES has no lockbox.
+            lockbox_disbursements: Vec::new(),
             checkpoints: TESTNET_CHECKPOINT_LIST.clone(),
-            temporary_orchard_disabling_soft_fork_height: Some(
-                super::TESTNET_TEMPORARY_ORCHARD_DISABLING_SOFT_FORK_HEIGHT,
-            ),
+            // CYPHES rejects legacy Orchard actions permanently, not by this soft fork.
+            temporary_orchard_disabling_soft_fork_height: None,
         }
     }
 }
@@ -1038,8 +1038,12 @@ impl Parameters {
     ) -> Result<Self, ParametersBuilderError> {
         let mut parameters = Self::build()
             .with_genesis_hash(REGTEST_GENESIS_HASH)?
-            // This value is chosen to match zcashd, see: <https://github.com/zcash/zcash/blob/master/src/chainparams.cpp#L654>
-            .with_target_difficulty_limit(U256::from_big_endian(&[0x0f; 32]))?
+            // CYPHES regtest PoWLimit, see `cyphes_params::network::REGTEST`.
+            .with_target_difficulty_limit(
+                CompactDifficulty(cyphes_params::network::REGTEST.pow_limit_compact)
+                    .to_expanded()
+                    .expect("difficulty limits are valid expanded values"),
+            )?
             .with_disable_pow(true)
             .with_unshielded_coinbase_spends(
                 should_allow_unshielded_coinbase_spends.unwrap_or(true),
@@ -1249,11 +1253,14 @@ impl Network {
     }
 
     /// Returns post-Canopy funding streams for this network at the provided height
+    ///
+    /// CYPHES has no funding streams; only a configured testnet can define them.
     pub fn all_funding_streams(&self) -> &Vec<FundingStreams> {
+        static NONE: Vec<FundingStreams> = Vec::new();
         if let Self::Testnet(params) = self {
             params.funding_streams()
         } else {
-            &mainnet::FUNDING_STREAMS
+            &NONE
         }
     }
 
@@ -1268,10 +1275,9 @@ impl Network {
     }
 
     /// Returns the list of founders' reward addresses for this network.
+    ///
+    /// CYPHES has no founders' reward, so this is always empty.
     pub fn founder_address_list(&self) -> &[&str] {
-        match self {
-            Network::Mainnet => &mainnet::FOUNDER_ADDRESS_LIST,
-            Network::Testnet(_) => &testnet::FOUNDER_ADDRESS_LIST,
-        }
+        &[]
     }
 }

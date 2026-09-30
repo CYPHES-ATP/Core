@@ -1184,6 +1184,58 @@ impl serde::Serialize for Transaction {
     }
 }
 
+impl Transaction {
+    /// The CYPHES genesis coinbase: a version 1 transaction whose only input
+    /// carries [`transparent::GENESIS_COINBASE_SCRIPT_SIG`], with no outputs,
+    /// because the genesis block pays nothing.
+    pub fn genesis_coinbase() -> Self {
+        Self::build_transparent(
+            zcash_primitives::transaction::TxVersion::Sprout(1),
+            zcash_protocol::consensus::BranchId::Sprout,
+            0,
+            zcash_protocol::consensus::BlockHeight::from_u32(0),
+            vec![transparent::Input::Coinbase {
+                height: block::Height(0),
+                data: transparent::GENESIS_COINBASE_SCRIPT_SIG.to_vec(),
+                sequence: u32::MAX,
+            }],
+            Vec::new(),
+        )
+    }
+
+    fn build_transparent(
+        version: zcash_primitives::transaction::TxVersion,
+        branch_id: zcash_protocol::consensus::BranchId,
+        lock_time: u32,
+        expiry_height: zcash_protocol::consensus::BlockHeight,
+        inputs: Vec<transparent::Input>,
+        outputs: Vec<transparent::Output>,
+    ) -> Self {
+        let vin: Vec<_> = inputs.iter().map(compat::input_to_txin).collect();
+        let vout: Vec<_> = outputs.iter().map(compat::output_to_txout).collect();
+        let transparent_bundle = if vin.is_empty() && vout.is_empty() {
+            None
+        } else {
+            Some(zcash_transparent::bundle::Bundle {
+                vin,
+                vout,
+                authorization: zcash_transparent::bundle::Authorized,
+            })
+        };
+        let tx_data = zp_tx::TransactionData::from_parts(
+            version,
+            branch_id,
+            lock_time,
+            expiry_height,
+            transparent_bundle,
+            None,
+            None,
+            None,
+        );
+        Transaction(tx_data.freeze().expect("built from valid components"))
+    }
+}
+
 #[cfg(any(test, feature = "proptest-impl"))]
 impl Transaction {
     /// Build a V1 transaction from transparent components. Used in tests.
@@ -1294,38 +1346,6 @@ impl Transaction {
             inputs,
             outputs,
         )
-    }
-
-    fn build_transparent(
-        version: zcash_primitives::transaction::TxVersion,
-        branch_id: zcash_protocol::consensus::BranchId,
-        lock_time: u32,
-        expiry_height: zcash_protocol::consensus::BlockHeight,
-        inputs: Vec<transparent::Input>,
-        outputs: Vec<transparent::Output>,
-    ) -> Self {
-        let vin: Vec<_> = inputs.iter().map(compat::input_to_txin).collect();
-        let vout: Vec<_> = outputs.iter().map(compat::output_to_txout).collect();
-        let transparent_bundle = if vin.is_empty() && vout.is_empty() {
-            None
-        } else {
-            Some(zcash_transparent::bundle::Bundle {
-                vin,
-                vout,
-                authorization: zcash_transparent::bundle::Authorized,
-            })
-        };
-        let tx_data = zp_tx::TransactionData::from_parts(
-            version,
-            branch_id,
-            lock_time,
-            expiry_height,
-            transparent_bundle,
-            None,
-            None,
-            None,
-        );
-        Transaction(tx_data.freeze().expect("built from valid components"))
     }
 
     /// Build a V5 transaction with an Orchard bundle, for tests.

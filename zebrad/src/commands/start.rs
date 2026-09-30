@@ -92,7 +92,7 @@ use tokio::{
 use tower::{builder::ServiceBuilder, util::BoxService, ServiceExt};
 use tracing_futures::Instrument;
 
-use zebra_chain::block::genesis::regtest_genesis_block;
+use zebra_chain::block::genesis::genesis_block;
 use zebra_consensus::router::BackgroundTaskHandles;
 use zebra_rpc::{methods::RpcImpl, server::RpcServer, SubmitBlockChannel};
 
@@ -684,21 +684,23 @@ impl StartCmd {
         );
 
         info!("spawning syncer task");
-        // In regtest, commit the genesis block directly (bypassing the syncer's genesis
-        // download, which requires a connected peer). Then run the syncer normally so
+        // Commit the embedded genesis block directly, on every CYPHES network,
+        // bypassing the syncer's genesis download: the first node of a new chain
+        // has no peers to download it from. Then run the syncer normally so
         // that multi-hop block propagation works: gossiped blocks that arrive out of
         // order (e.g. only the latest tip hash was gossiped) will be recovered by the
         // syncer using block locators within REGTEST_SYNC_RESTART_DELAY (2 seconds).
-        if is_regtest
-            && !syncer
-                .state_contains(config.network.network.genesis_hash())
-                .await?
+        if !syncer
+            .state_contains(config.network.network.genesis_hash())
+            .await?
         {
             let genesis_hash = block_verifier_router
                 .clone()
-                .oneshot(zebra_consensus::Request::Commit(regtest_genesis_block()))
+                .oneshot(zebra_consensus::Request::Commit(genesis_block(
+                    &config.network.network,
+                )))
                 .await
-                .expect("should validate Regtest genesis block");
+                .expect("should validate the embedded genesis block");
 
             assert_eq!(
                 genesis_hash,

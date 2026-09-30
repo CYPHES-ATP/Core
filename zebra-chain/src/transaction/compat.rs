@@ -1,6 +1,5 @@
 //! Conversions between Zebra and `zcash_primitives` transaction types.
 
-#[cfg(any(test, feature = "proptest-impl"))]
 use zcash_protocol::value::Zatoshis;
 
 use zcash_primitives::transaction::{self as zp_tx};
@@ -58,7 +57,6 @@ pub fn txin_to_input(
 }
 
 /// Convert a Zebra `transparent::Input` into a librustzcash `TxIn<Authorized>`.
-#[cfg(any(test, feature = "proptest-impl"))]
 pub fn input_to_txin(
     input: &transparent::Input,
 ) -> zcash_transparent::bundle::TxIn<zcash_transparent::bundle::Authorized> {
@@ -109,7 +107,6 @@ pub fn txout_to_output(txout: &zcash_transparent::bundle::TxOut) -> transparent:
 }
 
 /// Convert a Zebra `transparent::Output` into a librustzcash `TxOut`.
-#[cfg(any(test, feature = "proptest-impl"))]
 pub fn output_to_txout(output: &transparent::Output) -> zcash_transparent::bundle::TxOut {
     let zatoshis = Zatoshis::from_nonnegative_i64(output.value.into())
         .expect("Zebra Amount<NonNegative> is always a valid Zatoshis");

@@ -176,44 +176,17 @@ impl TransactionTemplate<NegativeOrZero> {
             }
         };
 
-        let add_sapling_reward = |builder: &mut Builder<_, _>, addr: &_| {
-            trace_err!(
-                builder.add_sapling_output::<String>(
-                    Some(sapling_crypto::keys::OutgoingViewingKey([0u8; 32])),
-                    *addr,
-                    miner_reward,
-                    memo.clone(),
-                ),
-                "Sapling"
-            )
-        };
-
-        let add_transparent_reward = |builder: &mut Builder<_, _>, addr| {
-            trace_err!(
-                builder.add_transparent_output(addr, miner_reward),
-                "transparent"
-            )
-        };
-
+        // CYPHES coinbase is shielded-only: the reward goes to the Ironwood pool,
+        // so the miner address must have an Orchard-shaped receiver. There is no
+        // Sapling or transparent fallback.
         match miner_params.addr() {
             Address::Unified(addr) => addr
                 .orchard()
-                .and_then(|addr| add_shielded_reward(&mut builder, addr))
-                .or_else(|| {
-                    addr.sapling()
-                        .and_then(|addr| add_sapling_reward(&mut builder, addr))
-                })
-                .or_else(|| {
-                    addr.transparent()
-                        .and_then(|addr| add_transparent_reward(&mut builder, addr))
-                }),
-
-            Address::Sapling(addr) => add_sapling_reward(&mut builder, addr),
-
-            Address::Transparent(addr) => add_transparent_reward(&mut builder, addr),
+                .and_then(|addr| add_shielded_reward(&mut builder, addr)),
 
             _ => Err(TransactionError::CoinbaseConstruction(
-                "Address not supported for miner rewards".to_string(),
+                "CYPHES miner rewards must go to a unified address with an Ironwood receiver"
+                    .to_string(),
             ))?,
         }
         .ok_or(TransactionError::CoinbaseConstruction(

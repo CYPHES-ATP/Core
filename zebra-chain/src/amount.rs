@@ -603,11 +603,14 @@ impl Constraint for NegativeOrZero {
     }
 }
 
-/// Number of zatoshis in 1 ZEC
-pub const COIN: i64 = 100_000_000;
+/// Number of base units in 1 CYPH.
+pub const COIN: i64 = cyphes_params::COIN as i64;
 
-/// The maximum zatoshi amount.
-pub const MAX_MONEY: i64 = 21_000_000 * COIN;
+/// The maximum amount: 10 billion CYPH, the cap on total issuance.
+///
+/// Zcash's 21 million would halt the chain once the shielded pool held
+/// 21 million CYPH, about 21,000 blocks after genesis.
+pub const MAX_MONEY: i64 = cyphes_params::MAX_MONEY as i64;
 
 /// A trait for defining constraints on `Amount`
 pub trait Constraint {

@@ -19,17 +19,6 @@ pub mod testnet;
 #[cfg(test)]
 mod tests;
 
-// Mainnet temporary Orchard-disabling soft-fork height, shipped publicly in Zebra v4.5.3.
-// This is DISTINCT from the NU6.2 *activation* (re-enable) height (3_364_600, see
-// `network_upgrade.rs`), which lands 1_174 blocks later. Do NOT change this value: it is
-// already deployed, so changing it would fork from live v4.5.3 nodes in the disable window.
-const MAINNET_TEMPORARY_ORCHARD_DISABLING_SOFT_FORK_HEIGHT: Height = Height(3_363_426);
-
-// Default Testnet temporary Orchard-disabling soft-fork height. As on Mainnet, this is DISTINCT
-// from the NU6.2 *activation* (re-enable) height (4_052_000, see `network_upgrade.rs`), which
-// lands 3_500 blocks later.
-const TESTNET_TEMPORARY_ORCHARD_DISABLING_SOFT_FORK_HEIGHT: Height = Height(4_048_500);
-
 /// An enum describing the kind of network, whether it's the production mainnet or a testnet.
 // Note: The order of these variants is important for correct bincode (de)serialization
 //       of history trees in the db format.
@@ -249,9 +238,11 @@ impl Network {
     /// Get the default port associated to this network.
     pub fn default_port(&self) -> u16 {
         match self {
-            Network::Mainnet => 8233,
-            // TODO: Add a `default_port` field to `testnet::Parameters` to return here. (zcashd uses 18344 for Regtest)
-            Network::Testnet(_params) => 18233,
+            Network::Mainnet => cyphes_params::network::MAINNET.default_p2p_port,
+            Network::Testnet(params) if params.is_regtest() => {
+                cyphes_params::network::REGTEST.default_p2p_port
+            }
+            Network::Testnet(_params) => cyphes_params::network::TESTNET.default_p2p_port,
         }
     }
 
@@ -304,14 +295,12 @@ impl Network {
             return Amount::zero();
         };
 
+        // CYPHES has no lockbox. Only a configured testnet can define disbursements.
         match self {
-            Self::Mainnet => {
-                subsidy::constants::mainnet::EXPECTED_NU6_1_LOCKBOX_DISBURSEMENTS_TOTAL
+            Self::Testnet(params) if !params.is_default_testnet() => {
+                params.lockbox_disbursement_total_amount()
             }
-            Self::Testnet(params) if params.is_default_testnet() => {
-                subsidy::constants::testnet::EXPECTED_NU6_1_LOCKBOX_DISBURSEMENTS_TOTAL
-            }
-            Self::Testnet(params) => params.lockbox_disbursement_total_amount(),
+            _ => Amount::zero(),
         }
     }
 
@@ -324,30 +313,19 @@ impl Network {
             return Vec::new();
         };
 
-        let expected_lockbox_disbursements = match self {
-            Self::Mainnet => subsidy::constants::mainnet::NU6_1_LOCKBOX_DISBURSEMENTS.to_vec(),
-            Self::Testnet(params) if params.is_default_testnet() => {
-                subsidy::constants::testnet::NU6_1_LOCKBOX_DISBURSEMENTS.to_vec()
-            }
-            Self::Testnet(params) => return params.lockbox_disbursements(),
-        };
-
-        expected_lockbox_disbursements
-            .into_iter()
-            .map(|(addr, amount)| {
-                (
-                    addr.parse().expect("hard-coded address must deserialize"),
-                    amount,
-                )
-            })
-            .collect()
+        // CYPHES has no lockbox. Only a configured testnet can define disbursements.
+        match self {
+            Self::Testnet(params) if !params.is_default_testnet() => params.lockbox_disbursements(),
+            _ => Vec::new(),
+        }
     }
 
     /// Returns the height at which the soft fork that temporarily disables Orchard
     /// actions in transactions activates, if it is configured for this network.
     pub fn temporary_orchard_disabling_soft_fork_height(&self) -> Option<Height> {
         match self {
-            Network::Mainnet => Some(MAINNET_TEMPORARY_ORCHARD_DISABLING_SOFT_FORK_HEIGHT),
+            // CYPHES rejects legacy Orchard actions permanently, not by this soft fork.
+            Network::Mainnet => None,
             Network::Testnet(parameters) => {
                 parameters.temporary_orchard_disabling_soft_fork_height()
             }

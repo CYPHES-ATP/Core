@@ -176,3 +176,7 @@ harness = false
 
 [lints]
 workspace = true
+
+[[example]]
+name = "cyphes_genesis"
+required-features = ["internal-miner"]

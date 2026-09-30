@@ -103,20 +103,7 @@ impl fmt::Display for NetworkUpgrade {
 #[allow(unused)]
 pub(super) const MAINNET_ACTIVATION_HEIGHTS: &[(block::Height, NetworkUpgrade)] = {
     use super::constants::activation_heights::mainnet::*;
-    &[
-        (block::Height(0), Genesis),
-        (BEFORE_OVERWINTER, BeforeOverwinter),
-        (OVERWINTER, Overwinter),
-        (SAPLING, Sapling),
-        (BLOSSOM, Blossom),
-        (HEARTWOOD, Heartwood),
-        (CANOPY, Canopy),
-        (NU5, Nu5),
-        (NU6, Nu6),
-        (NU6_1, Nu6_1),
-        (NU6_2, Nu6_2),
-        (NU6_3, Nu6_3),
-    ]
+    &[(block::Height(0), Genesis), (NU6_3, Nu6_3)]
 };
 /// Testnet network upgrade activation heights.
 ///
@@ -130,20 +117,7 @@ pub(super) const MAINNET_ACTIVATION_HEIGHTS: &[(block::Height, NetworkUpgrade)] 
 #[allow(unused)]
 pub(super) const TESTNET_ACTIVATION_HEIGHTS: &[(block::Height, NetworkUpgrade)] = {
     use super::constants::activation_heights::testnet::*;
-    &[
-        (block::Height(0), Genesis),
-        (BEFORE_OVERWINTER, BeforeOverwinter),
-        (OVERWINTER, Overwinter),
-        (SAPLING, Sapling),
-        (BLOSSOM, Blossom),
-        (HEARTWOOD, Heartwood),
-        (CANOPY, Canopy),
-        (NU5, Nu5),
-        (NU6, Nu6),
-        (NU6_1, Nu6_1),
-        (NU6_2, Nu6_2),
-        (NU6_3, Nu6_3),
-    ]
+    &[(block::Height(0), Genesis), (NU6_3, Nu6_3)]
 };
 
 /// The Consensus Branch Id, used to bind transactions and blocks to a
@@ -250,10 +224,12 @@ pub(crate) const CONSENSUS_BRANCH_IDS: &[(NetworkUpgrade, ConsensusBranchId)] = 
 ];
 
 /// The target block spacing before Blossom.
-const PRE_BLOSSOM_POW_TARGET_SPACING: i64 = 150;
+///
+/// CYPHES has no pre-Blossom blocks after genesis; every block targets 25 seconds.
+const PRE_BLOSSOM_POW_TARGET_SPACING: i64 = cyphes_params::TARGET_SPACING_SECS;
 
-/// The target block spacing after Blossom activation.
-pub const POST_BLOSSOM_POW_TARGET_SPACING: u32 = 75;
+/// The target block spacing after Blossom activation: 25 seconds.
+pub const POST_BLOSSOM_POW_TARGET_SPACING: u32 = cyphes_params::TARGET_SPACING_SECS as u32;
 
 /// The averaging window for difficulty threshold arithmetic mean calculations.
 ///

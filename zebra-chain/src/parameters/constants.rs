@@ -5,10 +5,9 @@
 
 use crate::block::Height;
 
-/// An initial period from Genesis to this Height where the block subsidy is gradually incremented. [What is slow-start mining][slow-mining]
-///
-/// [slow-mining]: https://z.cash/support/faq/#what-is-slow-start-mining
-pub const SLOW_START_INTERVAL: Height = Height(20_000);
+/// Zcash's slow-start mining period. CYPHES pays the full subsidy from block 1,
+/// so this is zero.
+pub const SLOW_START_INTERVAL: Height = Height(0);
 
 /// `SlowStartShift()` as described in [protocol specification §7.8][7.8]
 ///
@@ -29,19 +28,25 @@ pub const SLOW_START_SHIFT: Height = Height(SLOW_START_INTERVAL.0 / 2);
 // TODO: change to HeightDiff
 pub const MAX_BLOCK_REORG_HEIGHT: u32 = 1000;
 
-/// Magic numbers used to identify different Zcash networks.
+/// Magic numbers used to identify different CYPHES networks.
+///
+/// Defined in `cyphes_params::network`: the first four bytes of
+/// `SHA-256("CYPHES <network>")`.
 pub mod magics {
     use crate::parameters::network::magic::Magic;
 
     /// The production mainnet.
-    pub const MAINNET: Magic = Magic([0x24, 0xe9, 0x27, 0x64]);
+    pub const MAINNET: Magic = Magic(cyphes_params::network::MAINNET.magic);
     /// The testnet.
-    pub const TESTNET: Magic = Magic([0xfa, 0x1a, 0xf9, 0xbf]);
-    /// The regtest, see <https://github.com/zcash/zcash/blob/master/src/chainparams.cpp#L716-L719>
-    pub const REGTEST: Magic = Magic([0xaa, 0xe8, 0x3f, 0x5f]);
+    pub const TESTNET: Magic = Magic(cyphes_params::network::TESTNET.magic);
+    /// The regtest.
+    pub const REGTEST: Magic = Magic(cyphes_params::network::REGTEST.magic);
 }
 
 /// The block heights at which network upgrades activate.
+///
+/// CYPHES has no upgrade history: every Zcash upgrade through NU6.3 (Ironwood)
+/// is in force from block 1, so every constant here is `Height(1)`.
 pub mod activation_heights {
     /// Network upgrade activation heights for Testnet.
     pub mod testnet {
@@ -50,25 +55,25 @@ pub mod activation_heights {
         /// The block height at which `BeforeOverwinter` activates on Testnet.
         pub const BEFORE_OVERWINTER: Height = Height(1);
         /// The block height at which `Overwinter` activates on Testnet.
-        pub const OVERWINTER: Height = Height(207_500);
+        pub const OVERWINTER: Height = Height(1);
         /// The block height at which `Sapling` activates on Testnet.
-        pub const SAPLING: Height = Height(280_000);
+        pub const SAPLING: Height = Height(1);
         /// The block height at which `Blossom` activates on Testnet.
-        pub const BLOSSOM: Height = Height(584_000);
+        pub const BLOSSOM: Height = Height(1);
         /// The block height at which `Heartwood` activates on Testnet.
-        pub const HEARTWOOD: Height = Height(903_800);
+        pub const HEARTWOOD: Height = Height(1);
         /// The block height at which `Canopy` activates on Testnet.
-        pub const CANOPY: Height = Height(1_028_500);
+        pub const CANOPY: Height = Height(1);
         /// The block height at which `NU5` activates on Testnet.
-        pub const NU5: Height = Height(1_842_420);
+        pub const NU5: Height = Height(1);
         /// The block height at which `NU6` activates on Testnet.
-        pub const NU6: Height = Height(2_976_000);
+        pub const NU6: Height = Height(1);
         /// The block height at which `NU6.1` activates on Testnet.
-        pub const NU6_1: Height = Height(3_536_500);
+        pub const NU6_1: Height = Height(1);
         /// The block height at which `NU6.2` activates on Testnet.
-        pub const NU6_2: Height = Height(4_052_000);
+        pub const NU6_2: Height = Height(1);
         /// The block height at which `NU6.3` activates on Testnet.
-        pub const NU6_3: Height = Height(4_134_000);
+        pub const NU6_3: Height = Height(1);
     }
 
     /// Network upgrade activation heights for Mainnet.
@@ -78,24 +83,24 @@ pub mod activation_heights {
         /// The block height at which `BeforeOverwinter` activates on Mainnet.
         pub const BEFORE_OVERWINTER: Height = Height(1);
         /// The block height at which `Overwinter` activates on Mainnet.
-        pub const OVERWINTER: Height = Height(347_500);
+        pub const OVERWINTER: Height = Height(1);
         /// The block height at which `Sapling` activates on Mainnet.
-        pub const SAPLING: Height = Height(419_200);
+        pub const SAPLING: Height = Height(1);
         /// The block height at which `Blossom` activates on Mainnet.
-        pub const BLOSSOM: Height = Height(653_600);
+        pub const BLOSSOM: Height = Height(1);
         /// The block height at which `Heartwood` activates on Mainnet.
-        pub const HEARTWOOD: Height = Height(903_000);
+        pub const HEARTWOOD: Height = Height(1);
         /// The block height at which `Canopy` activates on Mainnet.
-        pub const CANOPY: Height = Height(1_046_400);
+        pub const CANOPY: Height = Height(1);
         /// The block height at which `NU5` activates on Mainnet.
-        pub const NU5: Height = Height(1_687_104);
+        pub const NU5: Height = Height(1);
         /// The block height at which `NU6` activates on Mainnet.
-        pub const NU6: Height = Height(2_726_400);
+        pub const NU6: Height = Height(1);
         /// The block height at which `NU6.1` activates on Mainnet.
-        pub const NU6_1: Height = Height(3_146_400);
+        pub const NU6_1: Height = Height(1);
         /// The block height at which `NU6.2` activates on Mainnet.
-        pub const NU6_2: Height = Height(3_364_600);
+        pub const NU6_2: Height = Height(1);
         /// The block height at which `NU6.3` activates on Mainnet.
-        pub const NU6_3: Height = Height(3_428_143);
+        pub const NU6_3: Height = Height(1);
     }
 }

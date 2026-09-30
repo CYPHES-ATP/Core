@@ -24,9 +24,8 @@ use crate::{
 };
 
 use constants::{
-    regtest, testnet, BLOSSOM_POW_TARGET_SPACING_RATIO, FUNDING_STREAM_RECEIVER_DENOMINATOR,
-    FUNDING_STREAM_SPECIFICATION, LOCKBOX_SPECIFICATION, MAX_BLOCK_SUBSIDY,
-    POST_BLOSSOM_HALVING_INTERVAL, PRE_BLOSSOM_HALVING_INTERVAL,
+    regtest, testnet, BLOSSOM_POW_TARGET_SPACING_RATIO, FUNDING_STREAM_SPECIFICATION,
+    LOCKBOX_SPECIFICATION, POST_BLOSSOM_HALVING_INTERVAL, PRE_BLOSSOM_HALVING_INTERVAL,
 };
 
 /// The funding stream receiver categories.
@@ -304,66 +303,28 @@ pub fn funding_stream_address_period<N: ParameterSubsidy>(height: Height, networ
 /// See `Halving(height)`, as described in [protocol specification §7.8][7.8]
 ///
 /// [7.8]: https://zips.z.cash/protocol/protocol.pdf#subsidies
-pub fn height_for_halving(halving: u32, network: &Network) -> Option<Height> {
-    if halving == 0 {
-        return Some(Height(0));
-    }
-
-    let slow_start_shift = i64::from(network.slow_start_shift().0);
-    let blossom_height = i64::from(NetworkUpgrade::Blossom.activation_height(network)?.0);
-    let pre_blossom_halving_interval = network.pre_blossom_halving_interval();
-    let halving_index = i64::from(halving);
-
-    let unscaled_height = halving_index.checked_mul(pre_blossom_halving_interval)?;
-
-    let pre_blossom_height = unscaled_height
-        .min(blossom_height)
-        .checked_add(slow_start_shift)?;
-
-    let post_blossom_height = 0
-        .max(unscaled_height - blossom_height)
-        .checked_mul(i64::from(BLOSSOM_POW_TARGET_SPACING_RATIO))?
-        .checked_add(slow_start_shift)?;
-
-    let height = pre_blossom_height.checked_add(post_blossom_height)?;
-
-    let height = u32::try_from(height).ok()?;
-    height.try_into().ok()
+///
+/// CYPHES: halving `k` starts at block `k * 5,000,000`, on every network.
+pub fn height_for_halving(halving: u32, _network: &Network) -> Option<Height> {
+    halving
+        .checked_mul(cyphes_params::HALVING_INTERVAL)?
+        .try_into()
+        .ok()
 }
 
 /// Returns the `fs.Value(height)` for each stream receiver
 /// as described in [protocol specification §7.8][7.8]
 ///
 /// [7.8]: https://zips.z.cash/protocol/protocol.pdf#subsidies
+///
+/// CYPHES has no funding streams: the whole subsidy goes to the miner, so
+/// this is always empty.
 pub fn funding_stream_values(
-    height: Height,
-    network: &Network,
-    expected_block_subsidy: Amount<NonNegative>,
+    _height: Height,
+    _network: &Network,
+    _expected_block_subsidy: Amount<NonNegative>,
 ) -> Result<HashMap<FundingStreamReceiver, Amount<NonNegative>>, amount::Error> {
-    let mut results = HashMap::new();
-
-    if expected_block_subsidy.is_zero() {
-        return Ok(results);
-    }
-
-    if NetworkUpgrade::current(network, height) >= NetworkUpgrade::Canopy {
-        let funding_streams = network.funding_streams(height);
-        if let Some(funding_streams) = funding_streams {
-            for (&receiver, recipient) in funding_streams.recipients() {
-                // - Spec equation: `fs.value = floor(block_subsidy(height)*(fs.numerator/fs.denominator))`:
-                //   https://zips.z.cash/protocol/protocol.pdf#subsidies
-                // - In Rust, "integer division rounds towards zero":
-                //   https://doc.rust-lang.org/stable/reference/expressions/operator-expr.html#arithmetic-and-logical-binary-operators
-                //   This is the same as `floor()`, because these numbers are all positive.
-                let amount_value = ((expected_block_subsidy * recipient.numerator())?
-                    / FUNDING_STREAM_RECEIVER_DENOMINATOR)?;
-
-                results.insert(receiver, amount_value);
-            }
-        }
-    }
-
-    Ok(results)
+    Ok(HashMap::new())
 }
 
 /// Block subsidy errors.
@@ -415,63 +376,21 @@ pub fn halving_divisor(height: Height, network: &Network) -> Option<u64> {
 /// `Halving(height)`, as described in [protocol specification §7.8][7.8]
 ///
 /// [7.8]: https://zips.z.cash/protocol/protocol.pdf#subsidies
-pub fn halving(height: Height, network: &Network) -> u32 {
-    let slow_start_shift = network.slow_start_shift();
-    let blossom_height = NetworkUpgrade::Blossom
-        .activation_height(network)
-        .expect("blossom activation height should be available");
-
-    let halving_index = if height < slow_start_shift {
-        0
-    } else if height < blossom_height {
-        let pre_blossom_height = height - slow_start_shift;
-        pre_blossom_height / network.pre_blossom_halving_interval()
-    } else {
-        let pre_blossom_height = blossom_height - slow_start_shift;
-        let scaled_pre_blossom_height =
-            pre_blossom_height * HeightDiff::from(BLOSSOM_POW_TARGET_SPACING_RATIO);
-
-        let post_blossom_height = height - blossom_height;
-
-        (scaled_pre_blossom_height + post_blossom_height) / network.post_blossom_halving_interval()
-    };
-
-    halving_index
-        .try_into()
-        .expect("already checked for negatives")
+///
+/// CYPHES: `height / 5,000,000` on every network. There is no slow start and
+/// no Blossom rescaling.
+pub fn halving(height: Height, _network: &Network) -> u32 {
+    height.0 / cyphes_params::HALVING_INTERVAL
 }
 
 /// `BlockSubsidy(height)` as described in [protocol specification §7.8][7.8]
 ///
 /// [7.8]: https://zips.z.cash/protocol/protocol.pdf#subsidies
-pub fn block_subsidy(height: Height, net: &Network) -> Result<Amount<NonNegative>, SubsidyError> {
-    let Some(halving_div) = halving_divisor(height, net) else {
-        return Ok(Amount::zero());
-    };
-
-    let slow_start_interval = net.slow_start_interval();
-
-    // The `floor` fn used in the spec is implicit in Rust's division of primitive integer types.
-
-    let amount = if height < slow_start_interval {
-        let slow_start_rate = MAX_BLOCK_SUBSIDY / u64::from(slow_start_interval);
-
-        if height < net.slow_start_shift() {
-            slow_start_rate * u64::from(height)
-        } else {
-            slow_start_rate * (u64::from(height) + 1)
-        }
-    } else {
-        let base_subsidy = if NetworkUpgrade::current(net, height) < NetworkUpgrade::Blossom {
-            MAX_BLOCK_SUBSIDY
-        } else {
-            MAX_BLOCK_SUBSIDY / u64::from(BLOSSOM_POW_TARGET_SPACING_RATIO)
-        };
-
-        base_subsidy / halving_div
-    };
-
-    Ok(Amount::try_from(amount)?)
+///
+/// CYPHES: 1,000 CYPH per block, halving every 5,000,000 blocks, nothing for
+/// genesis. See [`cyphes_params::block_subsidy`].
+pub fn block_subsidy(height: Height, _net: &Network) -> Result<Amount<NonNegative>, SubsidyError> {
+    Ok(Amount::try_from(cyphes_params::block_subsidy(height.0))?)
 }
 
 /// `MinerSubsidy(height)` as described in [protocol specification §7.8][7.8]
@@ -532,17 +451,8 @@ pub fn founders_reward_address(net: &Network, height: Height) -> Option<transpar
 /// `FoundersReward(height)` as described in [§7.8].
 ///
 /// [§7.8]: <https://zips.z.cash/protocol/protocol.pdf#subsidies>
-pub fn founders_reward(net: &Network, height: Height) -> Amount<NonNegative> {
-    // The founders reward is 20% of the block subsidy before the first halving, and 0 afterwards.
-    //
-    // On custom testnets, the first halving can occur later than Canopy, which causes an
-    // inconsistency in the definition of the founders reward, which should occur only before
-    // Canopy, so we check if Canopy is active as well.
-    if halving(height, net) < 1 && NetworkUpgrade::current(net, height) < NetworkUpgrade::Canopy {
-        block_subsidy(height, net)
-            .map(|subsidy| subsidy.div_exact(5))
-            .expect("block subsidy must be valid for founders rewards")
-    } else {
-        Amount::zero()
-    }
+///
+/// CYPHES has no founders' reward, so this is always zero.
+pub fn founders_reward(_net: &Network, _height: Height) -> Amount<NonNegative> {
+    Amount::zero()
 }
