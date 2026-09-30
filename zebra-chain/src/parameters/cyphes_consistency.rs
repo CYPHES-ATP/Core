@@ -101,3 +101,44 @@ fn genesis_hashes_match() {
         );
     }
 }
+
+#[test]
+fn regtest_block_subsidy_override_is_regtest_only() {
+    use crate::{
+        block::Height,
+        parameters::{subsidy::block_subsidy, testnet::RegtestParameters},
+    };
+
+    let large = Network::new_regtest(RegtestParameters {
+        block_subsidy: Some(25_000_000),
+        ..Default::default()
+    });
+    let cash = |n: u64| -> crate::amount::Amount<crate::amount::NonNegative> {
+        crate::amount::Amount::try_from(n * crate::amount::COIN as u64).unwrap()
+    };
+    assert_eq!(block_subsidy(Height(1), &large).unwrap(), cash(25_000_000));
+    assert_eq!(block_subsidy(Height(7), &large).unwrap(), cash(25_000_000));
+    assert_eq!(
+        block_subsidy(Height(0), &large).unwrap(),
+        cash(0),
+        "genesis still pays nothing"
+    );
+    assert!(large.is_regtest());
+
+    // Without the override, and on every other network, the CYPHES emission applies.
+    for network in [
+        Network::Mainnet,
+        Network::new_default_testnet(),
+        Network::new_regtest(Default::default()),
+    ] {
+        assert_eq!(network.regtest_block_subsidy(), None);
+        assert_eq!(block_subsidy(Height(1), &network).unwrap(), cash(1_000));
+    }
+
+    // Above the 10 billion cap is rejected.
+    let too_large = crate::parameters::testnet::Parameters::new_regtest(RegtestParameters {
+        block_subsidy: Some(10_000_000_001),
+        ..Default::default()
+    });
+    assert!(too_large.is_err());
+}

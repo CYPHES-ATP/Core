@@ -71,7 +71,18 @@ Orchard-shaped receiver is a configuration error.
 - **Wallet policy.** Wallets treat coinbase notes as spendable only after
   `WALLET_COINBASE_CONFIRMATIONS` (100) confirmations, and ordinary received
   notes after a smaller confirmation depth. This is client policy, so it can
-  change without a network upgrade.
+  change without a network upgrade. `cyphes-wallet` implements it by locking
+  each coinbase note (a coinbase is always its block's first transaction)
+  until `mined height + 99`, using librustzcash's input locks, so it becomes
+  spendable exactly at 100 confirmations.
+
+### Light wallets
+
+Wallets sync from the node's light-wallet gRPC server (lightwalletd's
+`CompactTxStreamer`, built into the node). Because every upgrade activates at
+block 1, a wallet born at block 1 reads the genesis state, so the server
+reads a block ID with neither hash nor height as genesis. Upstream Zebra and
+lightwalletd reject that request.
 
 ### Supply auditability
 
@@ -133,7 +144,11 @@ can be 51%-attacked cheaply. Mitigations before mainnet are in section 9.
   consensus limit 10 minutes after median-time-past (Zcash: 90 minutes),
   enforced from genesis on every network.
 - Regtest does not retarget, but it validates proof of work like every other
-  network.
+  network. On regtest only, `generate` and `generatetoaddress` mine real
+  BeamHash III blocks (with the `internal-miner` feature).
+- Regtest only: `[network.testnet_parameters] block_subsidy = N` replaces the
+  emission with a fixed N CASH per block, so tests can mine amounts above 21
+  million quickly. Configuring it on any other network is a startup error.
 
 PoW limits (compact): mainnet and testnet `0x2000ffff` (one valid solution in
 256), regtest `0x207fffff`.

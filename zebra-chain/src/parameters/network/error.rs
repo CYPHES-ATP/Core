@@ -7,6 +7,9 @@ use thiserror::Error;
 /// An error that can occur when building `Parameters` using `ParametersBuilder`.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ParametersBuilderError {
+    #[error("the regtest block subsidy must be a valid amount below MAX_MONEY")]
+    InvalidRegtestBlockSubsidy,
+
     #[error("cannot use reserved network name '{network_name}' as configured Testnet name, reserved names: {reserved_names:?}")]
     #[non_exhaustive]
     ReservedNetworkName {

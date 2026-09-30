@@ -149,12 +149,14 @@ pub struct Config {
     /// the non-finalized state to the backup directory synchronously before each update
     /// to the latest chain tip or non-finalized state channels.
     ///
-    /// Set to `false` by default. When `true`, the non-finalized state is still restored
-    /// from the backup directory on startup, but updates are written synchronously on every
-    /// block commit rather than asynchronously every 5 seconds.
+    /// When `true`, the non-finalized state is still restored from the backup directory on
+    /// startup, but updates are written synchronously on every block commit rather than
+    /// asynchronously every 5 seconds.
     ///
-    /// This is intended for testing scenarios where blocks are committed rapidly and the
-    /// async backup task may not flush all blocks before shutdown.
+    /// CYPHES sets this to `true` by default (upstream Zebra: `false`). The async task
+    /// neither flushes on shutdown nor survives a crash, so a node could come back without
+    /// its newest blocks; on a young network a lone miner's newest blocks may exist nowhere
+    /// else. With 25-second blocks, writing each block as it is committed costs little.
     pub debug_skip_non_finalized_state_backup_task: bool,
 
     // Elasticsearch configs
@@ -250,7 +252,7 @@ impl Default for Config {
             delete_old_database: true,
             debug_stop_at_height: None,
             debug_validity_check_interval: None,
-            debug_skip_non_finalized_state_backup_task: false,
+            debug_skip_non_finalized_state_backup_task: true,
             #[cfg(feature = "elasticsearch")]
             elasticsearch_url: "https://localhost:9200".to_string(),
             #[cfg(feature = "elasticsearch")]

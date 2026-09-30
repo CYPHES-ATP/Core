@@ -29,14 +29,16 @@ use zcash_client_backend::{
         chain::ChainState,
         locking::{LockOwner, OutputLockStore},
         wallet::{
-            create_proposed_transactions, propose_standard_transfer_to_address,
-            ConfirmationsPolicy, SpendingKeys,
+            create_proposed_transactions, decrypt_and_store_transaction,
+            propose_standard_transfer_to_address, ConfirmationsPolicy, SpendingKeys,
         },
-        Account as _, AccountBirthday, WalletRead, WalletWrite,
+        Account as _, AccountBirthday, TransactionDataRequest, TransactionStatus, WalletRead,
+        WalletWrite,
     },
     fees::StandardFeeRule,
     proto::service::{
         compact_tx_streamer_client::CompactTxStreamerClient, BlockId, ChainSpec, RawTransaction,
+        TxFilter,
     },
     sync,
     wallet::{OutputRef, OvkPolicy},
@@ -46,8 +48,12 @@ use zcash_keys::{
     address::Address,
     keys::{UnifiedAddressRequest, UnifiedSpendingKey},
 };
-use zcash_primitives::block::BlockHash;
-use zcash_protocol::{consensus::BlockHeight, value::Zatoshis, PoolType, ShieldedPool, TxId};
+use zcash_primitives::{block::BlockHash, transaction::Transaction};
+use zcash_protocol::{
+    consensus::{BlockHeight, BranchId},
+    value::Zatoshis,
+    PoolType, ShieldedPool, TxId,
+};
 
 pub use cache::MemoryBlockCache;
 pub use network::Network;
@@ -284,48 +290,93 @@ impl Wallet {
         self.apply_coinbase_policy().map(|_| ())
     }
 
-    /// The wallet's Ironwood-only unified address.
+    /// The wallet's Ironwood-only unified address: the account's default
+    /// address, so the same seed always shows the same address, including
+    /// after a restore. (The wallet receives on every diversified address of
+    /// the account, not just this one.)
     pub fn address(&mut self) -> Result<String> {
-        let existing = self
+        let account = self
             .db
-            .get_last_generated_address_matching(self.account, UnifiedAddressRequest::ORCHARD)
-            .map_err(|e| err("read address", e))?;
-        let ua = match existing {
-            Some(ua) => ua,
-            None => match self
-                .db
-                .get_next_available_address(self.account, UnifiedAddressRequest::ORCHARD)
-            {
-                Ok(Some((ua, _))) => ua,
-                // Before the chain reaches the wallet's birthday the database
-                // cannot generate addresses; the viewing key's default
-                // Ironwood address receives just the same.
-                _ => {
-                    let account = self
-                        .db
-                        .get_account(self.account)
-                        .map_err(|e| err("read account", e))?
-                        .ok_or_else(|| Error("wallet account missing".into()))?;
-                    account
-                        .ufvk()
-                        .ok_or_else(|| Error("account has no viewing key".into()))?
-                        .default_address(UnifiedAddressRequest::ORCHARD)
-                        .map_err(|e| err("derive address", format!("{e:?}")))?
-                        .0
-                }
-            },
-        };
+            .get_account(self.account)
+            .map_err(|e| err("read account", e))?
+            .ok_or_else(|| Error("wallet account missing".into()))?;
+        let (ua, _) = account
+            .ufvk()
+            .ok_or_else(|| Error("account has no viewing key".into()))?
+            .default_address(UnifiedAddressRequest::ORCHARD)
+            .map_err(|e| err("derive address", format!("{e:?}")))?;
         Ok(ua.encode(&self.network))
     }
 
-    /// Scans the chain until the wallet is up to date, then applies the
-    /// coinbase confirmation policy.
+    /// Scans the chain until the wallet is up to date, answers the wallet's
+    /// transaction data requests, then applies the coinbase confirmation
+    /// policy.
     pub async fn sync(&mut self, client: &mut Client) -> Result<()> {
         let cache = MemoryBlockCache::default();
         sync::run(client, &self.network, &cache, &mut self.db, 1_000)
             .await
             .map_err(|e| err("sync", e))?;
+        self.answer_data_requests(client).await?;
         self.apply_coinbase_policy()?;
+        Ok(())
+    }
+
+    /// Fetches full transactions and their chain status for the wallet.
+    ///
+    /// Compact blocks carry no expiry heights, fees or memos, and after a
+    /// reorganisation the wallet needs to know whether an orphaned transaction
+    /// was mined again, waits in the mempool, or is gone; otherwise an
+    /// orphaned payment could stay "pending" forever.
+    async fn answer_data_requests(&mut self, client: &mut Client) -> Result<()> {
+        let requests = self
+            .db
+            .transaction_data_requests()
+            .map_err(|e| err("read transaction data requests", e))?;
+        for request in requests {
+            let (txid, enhance) = match request {
+                TransactionDataRequest::GetStatus(txid) => (txid, false),
+                TransactionDataRequest::Enhancement(txid) => (txid, true),
+                // CYPHES has no transparent addresses.
+                #[allow(unreachable_patterns)]
+                _ => continue,
+            };
+            let response = client
+                .get_transaction(TxFilter {
+                    block: None,
+                    index: 0,
+                    hash: txid.as_ref().to_vec(),
+                })
+                .await;
+            let status = match response {
+                Ok(raw) => {
+                    let raw = raw.into_inner();
+                    // 0: in the mempool; u64::MAX: only on a side chain.
+                    let mined = (raw.height != 0 && raw.height != u64::MAX)
+                        .then(|| u32::try_from(raw.height).map(BlockHeight::from_u32))
+                        .transpose()
+                        .map_err(|e| err("transaction height", e))?;
+                    if enhance {
+                        let tip = self.chain_tip()?;
+                        let height = mined.unwrap_or(BlockHeight::from_u32(tip + 1));
+                        let tx = Transaction::read(
+                            &raw.data[..],
+                            BranchId::for_height(&self.network, height),
+                        )
+                        .map_err(|e| err("parse transaction", e))?;
+                        decrypt_and_store_transaction(&self.network, &mut self.db, &tx, mined)
+                            .map_err(|e| err("store transaction", e))?;
+                    }
+                    mined.map_or(TransactionStatus::NotInMainChain, TransactionStatus::Mined)
+                }
+                Err(status) if status.code() == tonic::Code::NotFound => {
+                    TransactionStatus::TxidNotRecognized
+                }
+                Err(e) => return Err(err("get_transaction", e)),
+            };
+            self.db
+                .set_transaction_status(txid, status)
+                .map_err(|e| err("record transaction status", e))?;
+        }
         Ok(())
     }
 

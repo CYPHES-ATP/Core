@@ -606,6 +606,9 @@ struct DTestnetParameters {
     temporary_orchard_disabling_soft_fork_height: Option<u32>,
     /// Regtest only: whether to allow coinbase spends to have transparent outputs.
     should_allow_unshielded_coinbase_spends: Option<bool>,
+    /// Regtest only: a fixed subsidy for every block after genesis, in whole CASH, for
+    /// tests of large amounts.
+    block_subsidy: Option<u64>,
 }
 
 /// Network configuration used during deserialization.
@@ -704,6 +707,9 @@ impl From<Arc<testnet::Parameters>> for DTestnetParameters {
             should_allow_unshielded_coinbase_spends: params
                 .is_regtest()
                 .then(|| params.should_allow_unshielded_coinbase_spends()),
+            block_subsidy: params
+                .regtest_block_subsidy()
+                .map(|subsidy| u64::from(subsidy) / zebra_chain::amount::COIN as u64),
         }
     }
 }
@@ -894,12 +900,18 @@ where
         extend_funding_stream_addresses_as_required,
         temporary_orchard_disabling_soft_fork_height,
         should_allow_unshielded_coinbase_spends,
+        block_subsidy,
     } = params;
 
-    // This is a Regtest-only consensus knob, so reject it rather than silently ignoring it.
+    // These are Regtest-only consensus knobs, so reject them rather than silently ignoring them.
     if should_allow_unshielded_coinbase_spends.is_some() {
         return Err(de::Error::custom(
             "should_allow_unshielded_coinbase_spends is only supported on Regtest",
+        ));
+    }
+    if block_subsidy.is_some() {
+        return Err(de::Error::custom(
+            "block_subsidy is only supported on Regtest",
         ));
     }
 
@@ -1017,6 +1029,7 @@ fn build_regtest_params(params: DTestnetParameters) -> RegtestParameters {
         checkpoints,
         extend_funding_stream_addresses_as_required,
         should_allow_unshielded_coinbase_spends,
+        block_subsidy,
         ..
     } = params;
 
@@ -1037,5 +1050,6 @@ fn build_regtest_params(params: DTestnetParameters) -> RegtestParameters {
         checkpoints: Some(checkpoints),
         extend_funding_stream_addresses_as_required,
         should_allow_unshielded_coinbase_spends,
+        block_subsidy,
     }
 }

@@ -389,7 +389,12 @@ pub fn halving(height: Height, _network: &Network) -> u32 {
 ///
 /// CYPHES: 1,000 CASH per block, halving every 5,000,000 blocks, nothing for
 /// genesis. See [`cyphes_params::block_subsidy`].
-pub fn block_subsidy(height: Height, _net: &Network) -> Result<Amount<NonNegative>, SubsidyError> {
+///
+/// A regtest node may configure a fixed subsidy instead, to test large amounts.
+pub fn block_subsidy(height: Height, net: &Network) -> Result<Amount<NonNegative>, SubsidyError> {
+    if let Some(subsidy) = net.regtest_block_subsidy().filter(|_| !height.is_min()) {
+        return Ok(subsidy);
+    }
     Ok(Amount::try_from(cyphes_params::block_subsidy(height.0))?)
 }
 

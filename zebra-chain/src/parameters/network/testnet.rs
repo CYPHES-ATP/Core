@@ -496,6 +496,9 @@ pub struct ParametersBuilder {
     checkpoints: Arc<CheckpointList>,
     /// Height at which the soft-fork to temporarily disable Orchard in transactions activates
     temporary_orchard_disabling_soft_fork_height: Option<Height>,
+    /// Regtest only: a fixed subsidy for every block after genesis, replacing the
+    /// CYPHES emission, so tests can mine amounts above 21 million CASH quickly.
+    regtest_block_subsidy: Option<Amount<NonNegative>>,
 }
 
 impl Default for ParametersBuilder {
@@ -530,6 +533,7 @@ impl Default for ParametersBuilder {
             checkpoints: TESTNET_CHECKPOINT_LIST.clone(),
             // CYPHES rejects legacy Orchard actions permanently, not by this soft fork.
             temporary_orchard_disabling_soft_fork_height: None,
+            regtest_block_subsidy: None,
         }
     }
 }
@@ -845,6 +849,12 @@ impl ParametersBuilder {
         self
     }
 
+    /// Regtest only: sets a fixed subsidy for every block after genesis.
+    pub fn with_regtest_block_subsidy(mut self, subsidy: Amount<NonNegative>) -> Self {
+        self.regtest_block_subsidy = Some(subsidy);
+        self
+    }
+
     /// Converts the builder to a [`Parameters`] struct
     fn finish(self) -> Parameters {
         let Self {
@@ -863,6 +873,7 @@ impl ParametersBuilder {
             lockbox_disbursements,
             checkpoints,
             temporary_orchard_disabling_soft_fork_height,
+            regtest_block_subsidy,
         } = self;
         Parameters {
             network_name,
@@ -880,6 +891,7 @@ impl ParametersBuilder {
             lockbox_disbursements,
             checkpoints,
             temporary_orchard_disabling_soft_fork_height,
+            regtest_block_subsidy,
         }
     }
 
@@ -927,6 +939,7 @@ impl ParametersBuilder {
             lockbox_disbursements,
             checkpoints: _,
             temporary_orchard_disabling_soft_fork_height: _,
+            regtest_block_subsidy: _,
         } = Self::default();
 
         self.activation_heights == activation_heights
@@ -960,6 +973,9 @@ pub struct RegtestParameters {
     /// Whether to allow coinbase spends to have transparent outputs (inverse of
     /// zcashd's `-regtestshieldcoinbase`).
     pub should_allow_unshielded_coinbase_spends: Option<bool>,
+    /// A fixed subsidy for every block after genesis, in whole CASH, replacing the
+    /// CYPHES emission. Only for tests of large amounts; never on mainnet or testnet.
+    pub block_subsidy: Option<u64>,
 }
 
 impl From<ConfiguredActivationHeights> for RegtestParameters {
@@ -1005,6 +1021,9 @@ pub struct Parameters {
     checkpoints: Arc<CheckpointList>,
     /// Height at which the soft-fork to temporarily disable Orchard in transactions activates
     temporary_orchard_disabling_soft_fork_height: Option<Height>,
+    /// Regtest only: a fixed subsidy for every block after genesis, replacing the
+    /// CYPHES emission, so tests can mine amounts above 21 million CASH quickly.
+    regtest_block_subsidy: Option<Amount<NonNegative>>,
 }
 
 impl Default for Parameters {
@@ -1034,6 +1053,7 @@ impl Parameters {
             checkpoints,
             extend_funding_stream_addresses_as_required,
             should_allow_unshielded_coinbase_spends,
+            block_subsidy,
         }: RegtestParameters,
     ) -> Result<Self, ParametersBuilderError> {
         let mut parameters = Self::build()
@@ -1064,6 +1084,14 @@ impl Parameters {
 
         if Some(true) == extend_funding_stream_addresses_as_required {
             parameters = parameters.extend_funding_streams();
+        }
+
+        if let Some(cash) = block_subsidy {
+            let subsidy = cash
+                .checked_mul(crate::amount::COIN as u64)
+                .and_then(|base| Amount::try_from(base).ok())
+                .ok_or(ParametersBuilderError::InvalidRegtestBlockSubsidy)?;
+            parameters = parameters.with_regtest_block_subsidy(subsidy);
         }
 
         Ok(Self {
@@ -1103,6 +1131,7 @@ impl Parameters {
             lockbox_disbursements: _,
             checkpoints: _,
             temporary_orchard_disabling_soft_fork_height: _,
+            regtest_block_subsidy: _,
         } = Self::new_regtest(Default::default()).expect("default regtest parameters are valid");
 
         self.network_name == network_name
@@ -1198,6 +1227,11 @@ impl Parameters {
             .collect()
     }
 
+    /// Regtest only: the fixed block subsidy, if configured.
+    pub fn regtest_block_subsidy(&self) -> Option<Amount<NonNegative>> {
+        self.regtest_block_subsidy
+    }
+
     /// Returns the checkpoints for this network.
     pub fn checkpoints(&self) -> Arc<CheckpointList> {
         self.checkpoints.clone()
@@ -1227,6 +1261,13 @@ impl Network {
         } else {
             false
         }
+    }
+
+    /// Regtest only: the fixed block subsidy, if configured.
+    pub fn regtest_block_subsidy(&self) -> Option<Amount<NonNegative>> {
+        self.parameters()
+            .filter(|params| params.is_regtest())
+            .and_then(|params| params.regtest_block_subsidy())
     }
 
     /// Returns slow start interval for this network
