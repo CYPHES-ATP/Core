@@ -59,6 +59,9 @@ pub enum TransactionError {
     #[error("coinbase transaction MUST have an empty Orchard component (no Orchard actions) from NU6.3 onward")]
     CoinbaseHasOrchardActions,
 
+    #[error("CYPHES transactions MUST only use the Ironwood pool: {0}")]
+    NotIronwoodOnly(String),
+
     #[error("Orchard transaction MUST NOT have the EnableCrossAddress flag set")]
     OrchardHasEnableCrossAddress,
 
@@ -398,6 +401,7 @@ impl TransactionError {
             | CoinbaseHasEnableSpendsOrchard
             | CoinbaseHasEnableSpendsIronwood
             | CoinbaseHasOrchardActions
+            | NotIronwoodOnly(_)
             | OrchardHasEnableCrossAddress
             | CoinbaseOutputsNotDecryptable
             | CoinbaseInMempool

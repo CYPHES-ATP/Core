@@ -47,9 +47,9 @@ pub const MAX_HRP_LENGTH: usize = 30;
 const REGTEST_GENESIS_HASH: &str =
     "5627d4e9cc60cfca84fc5e15ab22b6a7332c8be2b210ef25c158e65b62421b53";
 
-/// The block hash of the Testnet genesis block, `zcash-cli -testnet getblockhash 0`
+/// The block hash of the CYPHES Testnet genesis block, see `block::genesis`.
 const TESTNET_GENESIS_HASH: &str =
-    "05a60a92d99d85997cce3b87616c089f6124d7342af37106edc76126334a2c38";
+    "657e5d5139986a8f5b0aadbd6bc509d0db6b5cea1a332dc7195506fa9e9a029b";
 
 /// The halving height interval in the regtest is 6 hours.
 /// [zcashd regtest halving interval](https://github.com/zcash/zcash/blob/v5.10.0/src/consensus/params.h#L252)

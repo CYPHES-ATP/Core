@@ -257,6 +257,58 @@ pub fn coinbase_orchard_component_empty(
     Ok(())
 }
 
+/// Check that a transaction only uses the Ironwood pool.
+///
+/// # Consensus (CYPHES)
+///
+/// > After the genesis block, every transaction MUST be a version 6 transaction.
+/// > It MUST NOT have transparent outputs, Sprout JoinSplits, Sapling spends or
+/// > outputs, or Orchard actions. The only transparent input allowed is the
+/// > coinbase input of a coinbase transaction, which carries the block height
+/// > and no value.
+///
+/// Together with Ironwood-only coinbase outputs, this makes the Ironwood note
+/// commitment tree the whole ledger: all CYPH is shielded from the block it is
+/// mined in.
+pub fn ironwood_only(tx: &Transaction, height: Height) -> Result<(), TransactionError> {
+    use TransactionError::NotIronwoodOnly;
+
+    // The genesis block is checkpointed, pays nothing, and predates these rules.
+    if height.is_min() {
+        return Ok(());
+    }
+    if tx.version() != 6 {
+        return Err(NotIronwoodOnly("transaction version must be 6".to_string()));
+    }
+    if tx.has_transparent_outputs() {
+        return Err(NotIronwoodOnly(
+            "transparent outputs are not allowed".to_string(),
+        ));
+    }
+    if !tx.is_coinbase() && tx.has_transparent_inputs() {
+        return Err(NotIronwoodOnly(
+            "transparent inputs are not allowed".to_string(),
+        ));
+    }
+    if tx.has_sprout_joinsplit_data() {
+        return Err(NotIronwoodOnly(
+            "Sprout JoinSplits are not allowed".to_string(),
+        ));
+    }
+    if tx.has_sapling_shielded_data() {
+        return Err(NotIronwoodOnly(
+            "Sapling spends and outputs are not allowed".to_string(),
+        ));
+    }
+    if tx.has_orchard_shielded_data() {
+        return Err(NotIronwoodOnly(
+            "Orchard actions are not allowed".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 /// Check that a coinbase transaction has no PrevOut inputs, JoinSplits, or spends.
 ///
 /// # Consensus

@@ -55,8 +55,8 @@ impl Network {
     /// Returns the hash for the genesis block in `network`.
     pub fn genesis_hash(&self) -> block::Hash {
         match self {
-            // zcash-cli getblockhash 0
-            Network::Mainnet => "00040fe8ec8471911baa1db1266ea15dd06b4a8a5c453883c000b031973dce08"
+            // The PROVISIONAL CYPHES mainnet genesis, see `block::genesis`.
+            Network::Mainnet => "1e0a6479a90c0e735192f51156aabd7593e66dd15e0597677687bcf5ec741da9"
                 .parse()
                 .expect("hard-coded hash parses"),
             // See `zebra_chain::parameters::network::testnet` for more details.

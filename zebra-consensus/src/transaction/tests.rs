@@ -44,6 +44,7 @@ use crate::{error::TransactionError, transaction::POLL_MEMPOOL_DELAY};
 use super::{check, BlockRequest, BlockTxVerifier, MempoolRequest, MempoolTxVerifier};
 
 #[cfg(test)]
+mod ironwood_only;
 mod prop;
 
 /// Returns the timeout duration for tests, extended when running under coverage

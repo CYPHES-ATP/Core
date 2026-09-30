@@ -39,3 +39,16 @@ Recorded at the BeamHash III header change (246 passing, 30 below):
 - `work::difficulty::tests::vectors::block_difficulty`
 - `work::difficulty::tests::vectors::genesis_block_difficulty`
 - `work::difficulty::tests::vectors::testnet_minimum_difficulty`
+
+## Blocked on the librustzcash fork
+
+Raising `MAX_MONEY` to 10 billion CYPH in Zebra (needed so the chain does not
+halt when the Ironwood pool passes 21 million) lets proptest generate amounts
+that librustzcash's `Zatoshis` still rejects (its `MAX_MONEY` is 21 million
+ZEC). These fail until the `zcash_protocol` fork raises it too:
+
+- `block::tests::prop::block_genesis_strategy`
+- `block::tests::prop::genesis_partial_chain_strategy`
+
+Production code only converts amounts with fallible `TryFrom`, so this is a
+test-strategy failure, not a reachable panic.
