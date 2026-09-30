@@ -34,6 +34,8 @@ pub struct NetworkParams {
     pub coin_type: u32,
     /// Easiest allowed target, compact encoded.
     pub pow_limit_compact: u32,
+    /// Hash of the embedded genesis block, in display (RPC) byte order.
+    pub genesis_hash: &'static str,
 }
 
 /// Consensus branch ID for the CYPHES v1 rules, used in ZIP 244 signature
@@ -60,6 +62,8 @@ pub const MAINNET: NetworkParams = NetworkParams {
     // 0xffff << 232: one valid BeamHash III solution in 256 meets it, so a
     // single GPU can still extend the chain if hashrate collapses.
     pow_limit_compact: 0x2000_ffff,
+    // PROVISIONAL: re-mined at launch.
+    genesis_hash: "1e0a6479a90c0e735192f51156aabd7593e66dd15e0597677687bcf5ec741da9",
 };
 
 pub const TESTNET: NetworkParams = NetworkParams {
@@ -74,6 +78,7 @@ pub const TESTNET: NetworkParams = NetworkParams {
     uivk_hrp: "cyphivktest",
     coin_type: 1,
     pow_limit_compact: 0x2000_ffff,
+    genesis_hash: "657e5d5139986a8f5b0aadbd6bc509d0db6b5cea1a332dc7195506fa9e9a029b",
 };
 
 pub const REGTEST: NetworkParams = NetworkParams {
@@ -89,6 +94,7 @@ pub const REGTEST: NetworkParams = NetworkParams {
     coin_type: 1,
     // 0x7fffff << 232: half of all valid solutions.
     pow_limit_compact: 0x207f_ffff,
+    genesis_hash: "5627d4e9cc60cfca84fc5e15ab22b6a7332c8be2b210ef25c158e65b62421b53",
 };
 
 impl NetworkKind {

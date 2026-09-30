@@ -3297,10 +3297,13 @@ where
         let mut rpc = self.clone();
         let network = self.network.clone();
 
-        if !network.disable_pow() {
+        // CYPHES regtest validates proof of work, so `generate` mines real
+        // BeamHash III solutions there (with the internal-miner feature).
+        let solve_pow = !network.disable_pow();
+        if solve_pow && !(network.is_regtest() && cfg!(feature = "internal-miner")) {
             return Err(ErrorObject::borrowed(
                 0,
-                "generate is only supported on networks where PoW is disabled",
+                "generate needs Regtest and the internal-miner feature when PoW is enabled",
                 None,
             ));
         }
@@ -3325,12 +3328,26 @@ where
                 ));
             };
 
-            let proposal_block = proposal_block_from_template(
+            #[allow(unused_mut)]
+            let mut proposal_block = proposal_block_from_template(
                 &block_template,
                 BlockTemplateTimeSource::CurTime,
                 &network,
             )
             .map_error(server::error::LegacyCode::default())?;
+
+            #[cfg(feature = "internal-miner")]
+            if solve_pow {
+                // The reference solver uses every core and about 8 GiB of RAM.
+                let template = *proposal_block.header;
+                let solved = tokio::task::spawn_blocking(move || {
+                    Solution::solve(template, || Ok(())).map(|headers| *headers.first())
+                })
+                .await
+                .map_misc_error()?
+                .map_misc_error()?;
+                proposal_block.header = std::sync::Arc::new(solved);
+            }
 
             let hex_proposal_block = HexData(
                 proposal_block
@@ -3364,13 +3381,7 @@ where
         num_blocks: u32,
         address: String,
     ) -> Result<Vec<GetBlockHashResponse>> {
-        if !self.network.disable_pow() {
-            return Err(ErrorObject::borrowed(
-                0,
-                "generatetoaddress is only supported on networks where PoW is disabled",
-                None,
-            ));
-        }
+        // Proof-of-work handling (and its network restrictions) is in `generate`.
 
         // Build miner parameters that pay the coinbase to the requested address,
         // reusing the same coinbase-data and marker handling as configured mining.

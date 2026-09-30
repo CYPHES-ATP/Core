@@ -21,6 +21,8 @@ cache_dir = false
 
 [rpc]
 listen_addr = "127.0.0.1:22975"
+# Light-wallet gRPC (lightwalletd CompactTxStreamer) for cyphes-wallet.
+lightwalletd_listen_addr = "127.0.0.1:22976"
 enable_cookie_auth = false
 
 [state]

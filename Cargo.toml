@@ -15,6 +15,7 @@ members = [
         "cyphes-pow",
         "cyphes-params",
         "librustzcash/zcash_protocol",
+        "cyphes-wallet",
 ]
 
 # Use the edition 2021 dependency resolver in the workspace, to match the crates
@@ -226,6 +227,11 @@ debug-assertions = false
 overflow-checks = false
 incremental = false
 codegen-units = 16
+
+# The BeamHash III reference solver mines devnet and test blocks; unoptimized,
+# a block takes minutes instead of seconds.
+[profile.dev.package.cyphes-pow]
+opt-level = 3
 
 [profile.dev.package.halo2_proofs]
 opt-level = 3

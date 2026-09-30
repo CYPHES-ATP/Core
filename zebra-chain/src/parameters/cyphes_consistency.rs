@@ -85,3 +85,19 @@ fn address_prefixes_and_coin_types_match() {
         assert_eq!(coin_type, params.coin_type, "{kind:?}");
     }
 }
+
+#[test]
+fn genesis_hashes_match() {
+    let networks = [
+        (Network::Mainnet, &MAINNET),
+        (Network::new_default_testnet(), &TESTNET),
+        (Network::new_regtest(Default::default()), &REGTEST),
+    ];
+    for (network, params) in networks {
+        assert_eq!(
+            network.genesis_hash().to_string(),
+            params.genesis_hash,
+            "{network}"
+        );
+    }
+}

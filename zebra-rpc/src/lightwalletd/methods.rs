@@ -619,12 +619,12 @@ fn block_id_to_hash_or_height(block_id: BlockId) -> Result<HashOrHeight, Status>
 
         Ok(HashOrHeight::Hash(block::Hash(hash)))
     } else if block_id.height == 0 {
-        // Neither field is set. Reading that as a request for genesis, as lightwalletd
-        // does not, would answer an uninitialised request with a block that has no
-        // shielded data — so the client's scan "succeeds" and finds nothing.
-        Err(Status::invalid_argument(
-            "block id must specify a hash or a height",
-        ))
+        // Neither field is set, so read it as genesis. Upstream Zebra (like lightwalletd)
+        // rejects this to catch uninitialised requests, which is harmless on Zcash, where no
+        // wallet is born before Sapling activation. CYPHES activates every upgrade at block 1,
+        // so a wallet born at block 1 (a launch-day miner) must read the genesis state: empty
+        // note commitment trees, since the genesis block pays nothing.
+        Ok(HashOrHeight::Height(block::Height(0)))
     } else {
         let height = u32::try_from(block_id.height)
             .ok()
@@ -1283,6 +1283,17 @@ mod tests {
         })
         .expect_err("an out-of-range height should be rejected");
         assert_eq!(status.code(), Code::InvalidArgument);
+    }
+
+    #[test]
+    fn block_id_without_hash_or_height_is_genesis() {
+        // CYPHES wallets born at block 1 read the genesis state.
+        let hash_or_height = block_id_to_hash_or_height(BlockId {
+            height: 0,
+            hash: Vec::new(),
+        })
+        .expect("height 0 reads genesis");
+        assert_eq!(hash_or_height, HashOrHeight::Height(block::Height(0)));
     }
 
     #[test]

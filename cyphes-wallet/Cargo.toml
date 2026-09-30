@@ -1,0 +1,46 @@
+[package]
+name = "cyphes-wallet"
+version = "0.1.0"
+authors = ["CYPHES-ATP"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.88"
+description = "CASH wallet library and CLI: Ironwood-only, on librustzcash with the CYPHES zcash_protocol fork"
+publish = false
+
+[[bin]]
+name = "cyphes-wallet"
+path = "src/bin/cyphes-wallet.rs"
+
+[dependencies]
+cyphes-params = { path = "../cyphes-params" }
+
+zcash_client_backend = { version = "0.24", features = [
+    "orchard",
+    "sync",
+    "lightwalletd-tonic",
+    "lightwalletd-tonic-transport",
+] }
+zcash_client_sqlite = { version = "0.22", features = ["orchard"] }
+zcash_keys = { version = "0.16.1", features = ["orchard"] }
+zcash_primitives = { workspace = true }
+zcash_protocol = { workspace = true }
+zcash_address = { workspace = true }
+orchard = { workspace = true }
+sapling-crypto = { workspace = true }
+jubjub = { workspace = true }
+bls12_381 = { workspace = true }
+zip32 = { workspace = true }
+
+async-trait = "0.1"
+bip0039 = { version = "0.12", features = ["std", "all-languages"] }
+clap = { workspace = true, features = ["derive"] }
+hex = { workspace = true }
+rand = { workspace = true }
+rusqlite = { version = "0.37", features = ["bundled"] }
+secrecy = "0.8"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tonic = { workspace = true }
