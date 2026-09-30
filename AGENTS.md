@@ -22,7 +22,7 @@ not apply; do not open pull requests against `ZcashFoundation/zebra` from here.
    (`BEAM3REF=… cargo test -p cyphes-pow --test reference`, see
    `cyphes-pow/reference/build.sh`).
 4. **Proof of work is the only issuance.** Nothing may add a premine, fee
-   recipient, funding stream or any other path that creates CYPH.
+   recipient, funding stream or any other path that creates CASH.
 5. **Commit identity.** This project's public GitHub org carries no personal
    information. Before any commit, `git var GIT_AUTHOR_IDENT` must read
    `atpprotocol <287507827+atpprotocol@users.noreply.github.com>`.

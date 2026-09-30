@@ -5,8 +5,8 @@
 //! protocol itself (Ironwood: the `orchard` crate's post-NU6.3 circuit and V3
 //! notes) is used unmodified and is deliberately not parameterised here.
 //!
-//! Monetary rule: 1,000 CYPH per block, a block every 25 seconds, halving
-//! every 5,000,000 blocks. Proof of work is the only way CYPH is created.
+//! Monetary rule: 1,000 CASH per block, a block every 25 seconds, halving
+//! every 5,000,000 blocks. Proof of work is the only way CASH is created.
 
 #![forbid(unsafe_code)]
 
@@ -16,10 +16,10 @@ pub mod network;
 pub use difficulty::{lwma_next_target, U256};
 pub use network::{NetworkKind, NetworkParams};
 
-/// Base units per CYPH.
+/// Base units per CASH.
 pub const COIN: u64 = 100_000_000;
 
-/// Block subsidy for the first era: 1,000 CYPH.
+/// Block subsidy for the first era: 1,000 CASH.
 pub const INITIAL_SUBSIDY: u64 = 1_000 * COIN;
 
 /// Blocks per halving era. Block `k * HALVING_INTERVAL` is the first block of era `k`.
@@ -28,12 +28,12 @@ pub const HALVING_INTERVAL: u32 = 5_000_000;
 /// Target time between blocks.
 pub const TARGET_SPACING_SECS: i64 = 25;
 
-/// Upper bound on any amount, and on total supply: 10 billion CYPH.
+/// Upper bound on any amount, and on total supply: 10 billion CASH.
 ///
 /// Actual issuance ([`TOTAL_ISSUANCE`]) stays strictly below it.
 pub const MAX_MONEY: u64 = 10_000_000_000 * COIN;
 
-/// Every base unit proof of work will ever create: 9,999,998,999.25 CYPH.
+/// Every base unit proof of work will ever create: 9,999,998,999.25 CASH.
 ///
 /// `sum over eras k of HALVING_INTERVAL * (INITIAL_SUBSIDY >> k)`, minus the
 /// genesis block, which pays nothing.
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn subsidy_ends_after_era_36() {
-        // 1,000 CYPH = 1e11 base units needs 37 bits, so era 37 pays nothing.
+        // 1,000 CASH = 1e11 base units needs 37 bits, so era 37 pays nothing.
         assert_eq!(block_subsidy(37 * HALVING_INTERVAL - 1), 1);
         assert_eq!(block_subsidy(37 * HALVING_INTERVAL), 0);
     }

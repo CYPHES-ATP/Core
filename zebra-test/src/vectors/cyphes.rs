@@ -2,7 +2,7 @@
 //!
 //! Blocks 1 to 3 of a CYPHES regtest chain, mined by zebrad's internal
 //! BeamHash III miner on top of the embedded regtest genesis block. Each
-//! coinbase pays 1,000 CYPH to a single Ironwood output.
+//! coinbase pays 1,000 CASH to a single Ironwood output.
 
 use hex::FromHex;
 use lazy_static::lazy_static;

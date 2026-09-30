@@ -16,7 +16,7 @@ What is done, and the ordered work to a mainnet launch. Protocol rules are in
 Regtest devnet, verified: the node commits the embedded genesis, the internal
 miner mines BeamHash III blocks, each coinbase is a v6 transaction with one
 Ironwood output and no transparent outputs, and after 3 blocks the Ironwood
-pool holds exactly 3,000 CYPH with every other pool at zero.
+pool holds exactly 3,000 CASH with every other pool at zero.
 
 Run it:
 
@@ -35,7 +35,7 @@ this Zebra uses (`zcash_protocol` 0.10, `zcash_primitives` 0.30, `zcash_address`
 0.22), and apply it to both the node and the wallet with `[patch.crates-io]`.
 Keep `orchard` unpatched.
 
-- `zcash_protocol`: `MAX_MONEY` = 10 billion CYPH (import `cyphes-params`);
+- `zcash_protocol`: `MAX_MONEY` = 10 billion CASH (import `cyphes-params`);
   a CYPHES branch ID (`0x4535c5e0`) used for NU6.3-rules transactions; activation
   heights `{NU6.3: 1}` for Main and Test; CYPHES HRPs and coin type in
   `constants::{mainnet,testnet,regtest}`.
@@ -47,7 +47,7 @@ Keep `orchard` unpatched.
   listed in `TESTS-PENDING-VECTORS.md`.
 
 Done when: a `cyphregtest1…` address mines on regtest, and a test transfers
-more than 21 million CYPH in one note.
+more than 21 million CASH in one note.
 
 ## 2. Wallet in the CYPHES Tauri app (`CYPHES-ATP/Node`)
 
@@ -66,7 +66,7 @@ the wallet is a client of the node's gRPC server and shares only
   `wallet_balance`, `wallet_send`, `wallet_history`, `wallet_sync_status`.
 - React: a Wallet tab (balance, receive QR, send, history) and a Mine tab
   (local devnet miner, or lolMiner settings for the stratum bridge).
-- For v1, ATP credits neither settle to nor redeem from CYPH.
+- For v1, ATP credits neither settle to nor redeem from CASH.
 
 Done when: the app receives a coinbase from a local node, waits out maturity,
 and sends to a second wallet, all Ironwood.

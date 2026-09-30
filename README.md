@@ -6,7 +6,7 @@ CYPHES is a layer 1 built from Zcash's newest shielded pool, Ironwood, on a
 Rust node derived from Zebra, with GPU proof of work:
 
 ```text
-10B fixed supply        1,000 CYPH every 25 s, halving every 5,000,000 blocks
+10B fixed supply        1,000 CASH every 25 s, halving every 5,000,000 blocks
 GPU proof of work       BeamHash III (lolMiner, GMiner), LWMA-1 difficulty
 Ironwood only           shielded from genesis: no transparent, Sprout or Sapling
 Halo 2                  no trusted setup; circuit used unmodified
@@ -14,7 +14,7 @@ Zebra-derived node      Rust; Zcash's state, verification and P2P design
 ```
 
 No premine, no founders' reward, no dev fund. Proof of work is the only way
-CYPH is created.
+CASH is created.
 
 > **Status: devnet.** Regtest runs end to end. The mainnet genesis block is
 > provisional and there is no public network yet. See
@@ -40,7 +40,7 @@ cargo build -p zebrad --features internal-miner
 ```
 
 The node commits the regtest genesis block, then mines BeamHash III blocks
-whose coinbase pays 1,000 CYPH to an Ironwood output. Query it on
+whose coinbase pays 1,000 CASH to an Ironwood output. Query it on
 `127.0.0.1:22975`:
 
 ```sh

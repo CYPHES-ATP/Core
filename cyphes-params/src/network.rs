@@ -41,10 +41,10 @@ pub struct NetworkParams {
 /// both chains. First four bytes of `SHA-256("CYPHES consensus branch v1")`.
 pub const CONSENSUS_BRANCH_ID_V1: u32 = 0x4535_c5e0;
 
-/// Provisional mainnet ZIP 32 coin type ("CYPH" in ASCII).
+/// Provisional mainnet ZIP 32 coin type ("CASH" in ASCII).
 ///
 /// Must be registered in SLIP-0044 before mainnet genesis.
-pub const PROVISIONAL_MAINNET_COIN_TYPE: u32 = 0x4359_5048;
+pub const PROVISIONAL_MAINNET_COIN_TYPE: u32 = 0x4341_5348;
 
 pub const MAINNET: NetworkParams = NetworkParams {
     kind: NetworkKind::Mainnet,

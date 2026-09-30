@@ -268,7 +268,7 @@ pub fn coinbase_orchard_component_empty(
 /// > and no value.
 ///
 /// Together with Ironwood-only coinbase outputs, this makes the Ironwood note
-/// commitment tree the whole ledger: all CYPH is shielded from the block it is
+/// commitment tree the whole ledger: all CASH is shielded from the block it is
 /// mined in.
 pub fn ironwood_only(tx: &Transaction, height: Height) -> Result<(), TransactionError> {
     use TransactionError::NotIronwoodOnly;

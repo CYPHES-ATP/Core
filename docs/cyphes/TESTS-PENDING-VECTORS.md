@@ -42,7 +42,7 @@ Recorded at the BeamHash III header change (246 passing, 30 below):
 
 ## Blocked on the librustzcash fork
 
-Raising `MAX_MONEY` to 10 billion CYPH in Zebra (needed so the chain does not
+Raising `MAX_MONEY` to 10 billion CASH in Zebra (needed so the chain does not
 halt when the Ironwood pool passes 21 million) lets proptest strategies
 generate amounts that librustzcash's `Zatoshis` still rejects, because its
 `MAX_MONEY` is 21 million. They fail with "Zebra Amount<NonNegative> is always

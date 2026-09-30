@@ -15,16 +15,16 @@ are set, but the mainnet genesis block is **provisional** (see Launch).
 
 | Rule | Value | Code |
 |---|---|---|
-| Ticker, base unit | CYPH, 10^-8 CYPH | `cyphes_params::COIN` |
-| Block subsidy | 1,000 CYPH, genesis pays 0 | `cyphes_params::block_subsidy` |
+| Ticker, base unit | CASH, 10^-8 CASH | `cyphes_params::COIN` |
+| Block subsidy | 1,000 CASH, genesis pays 0 | `cyphes_params::block_subsidy` |
 | Halving | every 5,000,000 blocks (about 3.96 years); block `k * 5,000,000` starts era `k` | `HALVING_INTERVAL` |
-| Total issuance | 9,999,998,999.25 CYPH, strictly below 10 billion; last subsidy at block 184,999,999 | `TOTAL_ISSUANCE` |
-| Amount cap | 10 billion CYPH (`MAX_MONEY`) | `cyphes_params::MAX_MONEY` |
+| Total issuance | 9,999,998,999.25 CASH, strictly below 10 billion; last subsidy at block 184,999,999 | `TOTAL_ISSUANCE` |
+| Amount cap | 10 billion CASH (`MAX_MONEY`) | `cyphes_params::MAX_MONEY` |
 | Premine, founders' reward, dev fund, lockbox, slow start | none | `zebra-chain` subsidy functions |
 | Transaction fees | ZIP 317, paid to the miner | unchanged from Zebra |
 | Coinbase maturity | 100 blocks | `COINBASE_MATURITY` |
 
-Proof of work is the only way CYPH is created. Nothing in CYPHES CORE (the AI
+Proof of work is the only way CASH is created. Nothing in CYPHES CORE (the AI
 audit network) can mint, and no model score or verifier vote changes the
 subsidy.
 
@@ -111,7 +111,7 @@ can be 51%-attacked cheaply. Mitigations before mainnet are in section 9.
   parameter: an estimate of launch hashrate, erring hard. Simulated in
   `cyphes-params`: a 10x-too-hard start recovers in 2 blocks (about 6 minutes);
   a 4x-too-easy start mines about 27 blocks ahead of schedule; starting at the
-  PoW limit mines about 86 ahead (an 86,000 CYPH "instamine").
+  PoW limit mines about 86 ahead (an 86,000 CASH "instamine").
 - Timestamps: node-local future limit 3 minutes (Zcash: 2 hours);
   consensus limit 10 minutes after median-time-past (Zcash: 90 minutes).
 - Regtest does not retarget.
@@ -130,7 +130,7 @@ PoW limits (compact): mainnet and testnet `0x2000ffff` (one valid solution in
 | P2P / RPC / wallet gRPC | 2974 / 2975 / 2976 | 12974 / 12975 / 12976 | 22974 / 22975 / 22976 |
 | Unified address HRP | `cyph` | `cyphtest` | `cyphregtest` |
 | UFVK / UIVK HRP | `cyphview` / `cyphivk` | `…test` | `…regtest` |
-| ZIP 32 coin type | provisional `0x43595048`, must be registered in SLIP-0044 | 1 | 1 |
+| ZIP 32 coin type | provisional `0x43415348`, must be registered in SLIP-0044 | 1 | 1 |
 
 Consensus branch ID for the v1 rules: `0x4535c5e0`
 (`SHA-256("CYPHES consensus branch v1")`), distinct from every Zcash branch ID.
@@ -171,7 +171,7 @@ network (a new chain's first node has no peers to download it from).
 
 1. **librustzcash fork.** `zcash_protocol`'s `MAX_MONEY` is 21 million, which
    caps wallet balances and notes; CYPHES HRPs, coin type and branch ID also
-   live there. Required before any wallet holds 21 million CYPH (about 21,000
+   live there. Required before any wallet holds 21 million CASH (about 21,000
    blocks of rewards) and before testnet.
 2. **Code removal.** Transparent, Sprout and Sapling are rejected by consensus
    but their code still compiles in. Removing it also removes the C++

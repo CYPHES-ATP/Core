@@ -387,7 +387,7 @@ pub fn halving(height: Height, _network: &Network) -> u32 {
 ///
 /// [7.8]: https://zips.z.cash/protocol/protocol.pdf#subsidies
 ///
-/// CYPHES: 1,000 CYPH per block, halving every 5,000,000 blocks, nothing for
+/// CYPHES: 1,000 CASH per block, halving every 5,000,000 blocks, nothing for
 /// genesis. See [`cyphes_params::block_subsidy`].
 pub fn block_subsidy(height: Height, _net: &Network) -> Result<Amount<NonNegative>, SubsidyError> {
     Ok(Amount::try_from(cyphes_params::block_subsidy(height.0))?)
