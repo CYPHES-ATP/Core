@@ -81,7 +81,8 @@ since the fork. Every CYPHES-specific test passes: `cyphes-pow`,
 `block::genesis` and `parameters::cyphes_consistency`, `zebra-consensus`
 `ironwood_only`, `zebra-state` `lwma_tests` and `cyphes_isolation_tests`,
 `zebra-network` `cyphes_isolation_tests`, the `zebra-state` backup tests
-(the upstream round trip now uses CYPHES block 1), `cyphes-wallet`.
+(the upstream round trip now uses CYPHES block 1), `cyphes-wallet` and
+`cyphes-stratum`.
 
 Other crates' suites have not been triaged yet. In `zebra-consensus`, for
 example, tests built on Sprout or transparent transactions now fail on

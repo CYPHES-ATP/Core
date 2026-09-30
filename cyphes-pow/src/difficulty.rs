@@ -8,6 +8,7 @@
 //! submit solutions that satisfy it, so the stratum bridge needs the exact
 //! rule (`beam::Difficulty::IsTargetReached`).
 
+use primitive_types::U256;
 use sha2::{Digest, Sha256};
 
 /// `SHA-256(solution)`, the value difficulty is checked against.
@@ -47,6 +48,39 @@ impl BeamDifficulty {
             raw >> (order - Self::MANTISSA_BITS)
         } as u32;
         Self((mantissa & ((1 << Self::MANTISSA_BITS) - 1)) | (order << Self::MANTISSA_BITS))
+    }
+
+    /// The easiest difficulty whose accepted hashes all meet `target`
+    /// (`hash <= target`, big-endian): `2^256 / (target + 1)`, packed
+    /// rounding the mantissa up.
+    ///
+    /// A stratum server sends this as the job difficulty for a share target.
+    /// Miners only submit solutions that pass [`Self::is_target_reached`],
+    /// `hash * mantissa < 2^(280 - order)`; with the mantissa rounded up that
+    /// implies `hash < target + 1`, so every submitted solution meets
+    /// `target`. Rounding costs at most a 2^-24 fraction of the target.
+    ///
+    /// Returns `None` for targets below about 2^25, harder than the hardest
+    /// difficulty the packing can express.
+    pub fn from_target(target: &[u8; 32]) -> Option<Self> {
+        use primitive_types::U512;
+
+        let target = U256::from_big_endian(target);
+        // The difficulty in fixed point with MANTISSA_BITS fractional bits,
+        // rounded up: q = ceil(2^280 / (target + 1)). It is at least 2^24,
+        // since target + 1 <= 2^256.
+        let n = U512::from(target) + 1;
+        let q = ((U512::one() << (256 + Self::MANTISSA_BITS)) + n - 1) / n;
+        let mut order = q.bits() as u32 - 1 - Self::MANTISSA_BITS;
+        let remainder = q & ((U512::one() << order) - 1);
+        let mut mantissa = (q >> order).low_u64() + u64::from(!remainder.is_zero());
+        if mantissa == 1 << (Self::MANTISSA_BITS + 1) {
+            mantissa = 1 << Self::MANTISSA_BITS;
+            order += 1;
+        }
+        (order <= Self::MAX_ORDER).then_some(Self(
+            (mantissa as u32 & ((1 << Self::MANTISSA_BITS) - 1)) | (order << Self::MANTISSA_BITS),
+        ))
     }
 
     /// `beam::Difficulty::IsTargetReached`: `hash * mantissa < 2^(280 - order)`.
@@ -121,6 +155,69 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The largest hash `d` accepts: `floor((2^(280 - order) - 1) / mantissa)`.
+    fn largest_accepted(d: BeamDifficulty) -> primitive_types::U512 {
+        use primitive_types::U512;
+        let order = d.0 >> 24;
+        let mantissa = U512::from((1u64 << 24) | u64::from(d.0 & 0xff_ffff));
+        ((U512::one() << (280 - order)) - 1) / mantissa
+    }
+
+    #[test]
+    fn from_target_accepts_only_hashes_meeting_the_target() {
+        use primitive_types::U512;
+        let to_bytes = |v: U256| {
+            let mut b = [0u8; 32];
+            v.to_big_endian(&mut b);
+            b
+        };
+        // Fixed cases, then pseudo-random targets of every magnitude.
+        let mut targets = vec![
+            U256::MAX,
+            U256::MAX >> 1,
+            U256::one() << 200,
+            (U256::one() << 200) - 1,
+            U256::from(0x7f_ffffu64) << 232, // regtest limit, compact 0x207fffff
+            U256::from(0xffffu64) << 232,    // mainnet limit, compact 0x2000ffff
+            U256::from(3u64),
+            U256::one(),
+        ];
+        let mut x = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = || {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x
+        };
+        for _ in 0..2_000 {
+            let words = [next(), next(), next(), next()];
+            let t = U256(words) >> (next() % 250);
+            if !t.is_zero() {
+                targets.push(t);
+            }
+        }
+        for t in targets {
+            let Some(d) = BeamDifficulty::from_target(&to_bytes(t)) else {
+                assert!(t < U256::one() << 25, "{t:x} is representable");
+                continue;
+            };
+            let largest = largest_accepted(d);
+            assert!(largest <= U512::from(t), "{t:x}: accepts {largest:x}");
+            let largest = U256::try_from(largest).expect("at most the target");
+            assert!(d.is_target_reached(&to_bytes(largest)), "{t:x}");
+            if largest < U256::MAX {
+                assert!(!d.is_target_reached(&to_bytes(largest + 1)), "{t:x}");
+            }
+            // Tight: loses at most about a 2^-24 fraction of the target.
+            assert!(largest >= t - (t >> 23), "{t:x}: only up to {largest:x}");
+        }
+        assert_eq!(BeamDifficulty::from_target(&[0; 32]), None);
+        assert_eq!(
+            BeamDifficulty::from_target(&[0xff; 32]),
+            Some(BeamDifficulty(0))
+        );
     }
 
     #[test]

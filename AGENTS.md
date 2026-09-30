@@ -46,6 +46,7 @@ not apply; do not open pull requests against `ZcashFoundation/zebra` from here.
 | Local devnet | `devnet/regtest.toml` |
 | librustzcash fork (money, branch ID, addresses) | `librustzcash/zcash_protocol/` |
 | Wallet library, CLI, money-cycle harness | `cyphes-wallet/` |
+| Stratum bridge for GPU miners | `cyphes-stratum/` |
 
 Many Zebra tests still parse Zcash block vectors and fail;
 `docs/cyphes/TESTS-PENDING-VECTORS.md` lists them. Do not "fix" them by

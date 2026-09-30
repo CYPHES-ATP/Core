@@ -1,0 +1,36 @@
+[package]
+name = "cyphes-stratum"
+version = "0.1.0"
+authors = ["CYPHES-ATP"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.88"
+description = "Stratum bridge between a CYPHES node and BeamHash III GPU miners"
+publish = false
+
+[[bin]]
+name = "cyphes-stratum"
+path = "src/main.rs"
+
+[dependencies]
+cyphes-pow = { path = "../cyphes-pow" }
+zebra-chain = { path = "../zebra-chain" }
+
+clap = { workspace = true, features = ["derive"] }
+futures = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
+tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[dev-dependencies]
+cyphes-pow = { path = "../cyphes-pow", features = ["solver"] }
+cyphes-wallet = { path = "../cyphes-wallet" }
+secrecy = "0.8"
+zebra-test = { path = "../zebra-test" }

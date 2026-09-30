@@ -70,12 +70,17 @@ building GPU mining on it, and prove both before putting it in the desktop app.
 
 ## 3. GPU mining
 
-A stratum bridge (`cyphes-stratum`) between `getblocktemplate` /
-`submitblock` and Beam's stratum protocol: the job `input` is the header's
-PoW input, miners vary the 8-byte nonce, share difficulty uses Beam's packed
-format, and the bridge re-verifies each share before submitting. Done when
-lolMiner or GMiner on a real GPU mines blocks that the network accepts and the
-wallet from step 2 receives the payouts.
+`cyphes-stratum` (built) bridges `getblocktemplate` / `submitblock` and
+Beam's stratum protocol: the job `input` is the header's PoW input, miners
+vary the 8-byte nonce, share difficulty uses Beam's packed format, and the
+bridge re-verifies each solution before submitting a block. Its end-to-end
+test mines blocks through the bridge with a Beam-protocol CPU client, checks
+each accepted solution with Beam's own C++ verifier, and shows the wallet
+receiving the rewards (`cyphes-stratum/README.md`).
+
+Remaining: lolMiner or GMiner on a real GPU (Linux or Windows) mining blocks
+through the bridge that the network accepts and the wallet receives. Then TLS
+for the stratum port.
 
 ## 4. Wallet in the CYPHES desktop app
 

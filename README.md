@@ -18,7 +18,8 @@ CASH is created.
 
 > **Status: devnet.** Regtest runs end to end: CASH is mined, received,
 > spent and restored from seed by the `cyphes-wallet` CLI
-> ([evidence](docs/cyphes/MONEY-CYCLE-REPORT.md)). The mainnet genesis block is
+> ([evidence](docs/cyphes/MONEY-CYCLE-REPORT.md)), and blocks can be mined
+> through the `cyphes-stratum` bridge. The mainnet genesis block is
 > provisional and there is no public network yet. See
 > [docs/cyphes/ROADMAP.md](docs/cyphes/ROADMAP.md).
 
@@ -51,6 +52,12 @@ curl -s -X POST -H 'content-type: application/json' \
   http://127.0.0.1:22975
 ```
 
+## Mine with a GPU
+
+`cyphes-stratum` serves the node's block templates to BeamHash III GPU
+miners over Beam's stratum protocol; see
+[cyphes-stratum/README.md](cyphes-stratum/README.md).
+
 ## Crates
 
 | Crate | Purpose |
@@ -58,6 +65,7 @@ curl -s -X POST -H 'content-type: application/json' \
 | `cyphes-params` | CYPHES consensus and network parameters, shared by node and wallet |
 | `cyphes-pow` | BeamHash III verifier and reference solver, tested against Beam's C++ |
 | `cyphes-wallet` | CASH wallet library and CLI on librustzcash; the money-cycle harness |
+| `cyphes-stratum` | stratum bridge from the node to BeamHash III GPU miners |
 | `librustzcash/zcash_protocol` | the forked librustzcash crate: 10B `MAX_MONEY`, CYPHES branch ID and addresses |
 | `zebra-*`, `zebrad` | the node, forked from Zebra v6.4.2 |
 

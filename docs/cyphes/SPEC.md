@@ -213,7 +213,7 @@ network (a new chain's first node has no peers to download it from).
 |---|---|
 | **Deleted** | Equihash; Zcash genesis blocks and checkpoints (25,253 lines); founders' reward, funding-stream and lockbox constants; slow start; DigiShield difficulty and the testnet minimum-difficulty rule; the temporary Orchard soft fork; Zcash DNS seeders; transparent, Sprout, Sapling and legacy-Orchard transactions (by consensus rule; code removal is ongoing) |
 | **Kept** | Ironwood / Halo 2 / Pallas-Vesta (`orchard` 0.15.x, untouched); note commitments, nullifiers, viewing keys; Zebra's state, verification pipeline, P2P and the lightwalletd-compatible gRPC server |
-| **Added** | BeamHash III; LWMA-1; the CYPHES emission; new genesis, magic, ports, HRPs, branch ID; `cyphes-params`, `cyphes-pow` and the `cyphes-wallet` CLI |
+| **Added** | BeamHash III; LWMA-1; the CYPHES emission; new genesis, magic, ports, HRPs, branch ID; `cyphes-params`, `cyphes-pow`, the `cyphes-wallet` CLI and the `cyphes-stratum` bridge |
 
 ## 8. Known gaps (v1 is not done)
 
@@ -226,8 +226,9 @@ network (a new chain's first node has no peers to download it from).
    `zcash_script` dependency and Sapling's Groth16 parameters.
 3. **Test vectors.** Zebra's Zcash block vectors no longer parse; see
    `TESTS-PENDING-VECTORS.md`.
-4. **GPU mining.** A stratum bridge from `getblocktemplate` to Beam stratum,
-   for lolMiner and GMiner.
+4. **GPU mining.** `cyphes-stratum` bridges `getblocktemplate` to Beam
+   stratum and is proven with a Beam-protocol CPU client and Beam's own
+   verifier; a real lolMiner or GMiner run is pending.
 5. **Wallet.** `zcash_client_backend` in the CYPHES Tauri app, syncing from the
    node's gRPC server.
 

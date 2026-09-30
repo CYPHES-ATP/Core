@@ -1232,9 +1232,33 @@ version = "0.1.0"
 dependencies = [
  "blake2b_simd",
  "hex",
+ "primitive-types",
  "rayon",
  "sha2 0.10.9",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "cyphes-stratum"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "cyphes-pow",
+ "cyphes-wallet",
+ "futures",
+ "hex",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "zebra-chain",
+ "zebra-test",
 ]
 
 [[package]]
