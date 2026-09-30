@@ -86,6 +86,7 @@ proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
+cyphes-params = { path = "../cyphes-params" }
 color-eyre = { workspace = true }
 
 hex = { workspace = true }

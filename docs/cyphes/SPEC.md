@@ -22,7 +22,7 @@ are set, but the mainnet genesis block is **provisional** (see Launch).
 | Amount cap | 10 billion CASH (`MAX_MONEY`) | `cyphes_params::MAX_MONEY` |
 | Premine, founders' reward, dev fund, lockbox, slow start | none | `zebra-chain` subsidy functions |
 | Transaction fees | ZIP 317, paid to the miner | unchanged from Zebra |
-| Coinbase maturity | 100 blocks | `COINBASE_MATURITY` |
+| Coinbase maturity | **none in consensus**; wallets wait 100 confirmations by policy | `WALLET_COINBASE_CONFIRMATIONS` |
 
 Proof of work is the only way CASH is created. Nothing in CYPHES CORE (the AI
 audit network) can mint, and no model score or verifier vote changes the
@@ -52,9 +52,26 @@ for every transaction after genesis, in blocks and in the mempool:
   block height and no value.
 
 Coinbase pays the miner through Ironwood outputs only, encrypted to the
-all-zero outgoing viewing key (ZIP 213), so anyone can decrypt every coinbase
-and audit issuance. A miner address without an Orchard-shaped receiver is a
-configuration error.
+all-zero outgoing viewing key (ZIP 213). A miner address without an
+Orchard-shaped receiver is a configuration error.
+
+### Coinbase contract
+
+- **Coinbase is public by design.** Anyone can decrypt every coinbase output
+  with the zero outgoing viewing key: its recipient address and amount are
+  public, which is what makes issuance auditable. Privacy comes from ordinary
+  shielded payments afterwards. Miners who want address privacy should mine to
+  a dedicated address and move the funds on.
+- **There is no consensus coinbase maturity.** Zcash's 100-block rule applies
+  only to transparent coinbase outputs (ZIP 213), and CYPHES has none. A
+  shielded spend does not reveal which note it spends, so consensus cannot
+  apply a maturity rule. If a reorg removes a coinbase, the anchors and
+  nullifiers of transactions that spent it no longer exist on the new chain,
+  and those transactions become invalid rather than creating value.
+- **Wallet policy.** Wallets treat coinbase notes as spendable only after
+  `WALLET_COINBASE_CONFIRMATIONS` (100) confirmations, and ordinary received
+  notes after a smaller confirmation depth. This is client policy, so it can
+  change without a network upgrade.
 
 ### Supply auditability
 
@@ -113,8 +130,10 @@ can be 51%-attacked cheaply. Mitigations before mainnet are in section 9.
   a 4x-too-easy start mines about 27 blocks ahead of schedule; starting at the
   PoW limit mines about 86 ahead (an 86,000 CASH "instamine").
 - Timestamps: node-local future limit 3 minutes (Zcash: 2 hours);
-  consensus limit 10 minutes after median-time-past (Zcash: 90 minutes).
-- Regtest does not retarget.
+  consensus limit 10 minutes after median-time-past (Zcash: 90 minutes),
+  enforced from genesis on every network.
+- Regtest does not retarget, but it validates proof of work like every other
+  network.
 
 PoW limits (compact): mainnet and testnet `0x2000ffff` (one valid solution in
 256), regtest `0x207fffff`.
@@ -134,14 +153,27 @@ PoW limits (compact): mainnet and testnet `0x2000ffff` (one valid solution in
 
 Consensus branch ID for the v1 rules: `0x4535c5e0`
 (`SHA-256("CYPHES consensus branch v1")`), distinct from every Zcash branch ID.
-**Not yet active:** the node still signs with NU6.3's branch ID until the
-librustzcash fork lands (section 8). Cross-chain replay is already impossible
-in practice, because an Ironwood spend's anchor exists on only one chain.
+It is the branch ID of the NU6.3 rule set in the node and in the librustzcash
+fork, so it goes into every transaction header and ZIP 244 signature hash: no
+signature is valid on both chains, and a Zcash transaction does not even
+parse. (An Ironwood spend's anchor also exists on only one chain.)
+
+Addresses, keys and prefixes come from the librustzcash fork
+(`librustzcash/zcash_protocol`), which every CYPHES node and wallet must use.
+Every Zcash HRP and Base58 prefix has a distinct CYPHES value, so no Zcash
+address or key parses as a CYPHES one. A test in `zebra-chain`
+(`parameters::cyphes_consistency`) fails if the fork and `cyphes-params` ever
+disagree.
 
 Upgrade history: the activation list is `{0: Genesis, 1: NU6.3}` on every
 network. Every Zcash upgrade through NU6.3 is in force from block 1.
 
 Default peers: none. CYPHES nodes never dial Zcash seeders.
+
+Local data: everything lives under `<OS cache dir>/cyphes` (state databases,
+peer cache, RPC cookie) and the default config file is `cyphes.toml`, so a
+CYPHES node never reads or deletes a Zcash node's `zebra` directory or
+`zebrad.toml` on the same machine.
 
 ## 6. Genesis
 
@@ -169,10 +201,9 @@ network (a new chain's first node has no peers to download it from).
 
 ## 8. Known gaps (v1 is not done)
 
-1. **librustzcash fork.** `zcash_protocol`'s `MAX_MONEY` is 21 million, which
-   caps wallet balances and notes; CYPHES HRPs, coin type and branch ID also
-   live there. Required before any wallet holds 21 million CASH (about 21,000
-   blocks of rewards) and before testnet.
+1. **Money cycle not yet proven end to end.** The librustzcash fork is in
+   place (10 billion `MAX_MONEY`, CYPHES branch ID and prefixes), but no wallet
+   has yet received, spent, restored and rescanned CASH on a live chain.
 2. **Code removal.** Transparent, Sprout and Sapling are rejected by consensus
    but their code still compiles in. Removing it also removes the C++
    `zcash_script` dependency and Sapling's Groth16 parameters.

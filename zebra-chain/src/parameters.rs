@@ -28,4 +28,6 @@ pub use network_upgrade::*;
 pub use transaction::*;
 
 #[cfg(test)]
+mod cyphes_consistency;
+#[cfg(test)]
 mod tests;

@@ -167,3 +167,24 @@ fn mined_cyphes_blocks_are_ironwood_only() {
         previous = block.hash();
     }
 }
+
+#[test]
+fn zcash_branch_id_transactions_do_not_parse() {
+    use zebra_chain::{block::Block, serialization::ZcashDeserializeInto};
+
+    let _init_guard = zebra_test::init();
+
+    // A real CYPHES block: 220-byte header, 1-byte transaction count, then the
+    // v6 coinbase: header, version group ID, consensus branch ID.
+    let mut bytes = zebra_test::vectors::CYPHES_REGTEST_BLOCKS[0].clone();
+    let branch_id_at = 220 + 1 + 4 + 4;
+    assert_eq!(
+        bytes[branch_id_at..branch_id_at + 4],
+        cyphes_params::network::CONSENSUS_BRANCH_ID_V1.to_le_bytes()
+    );
+    assert!(bytes.zcash_deserialize_into::<Block>().is_ok());
+
+    // Zcash's NU6.3 branch ID: the same transaction is not a CYPHES transaction.
+    bytes[branch_id_at..branch_id_at + 4].copy_from_slice(&0x37a5_165bu32.to_le_bytes());
+    assert!(bytes.zcash_deserialize_into::<Block>().is_err());
+}

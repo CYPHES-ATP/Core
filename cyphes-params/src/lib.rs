@@ -57,8 +57,13 @@ pub const FUTURE_TIME_LIMIT_SECS: i64 = 180;
 /// lags the tip by about 2.5 minutes.
 pub const MAX_TIME_SINCE_MEDIAN_SECS: i64 = 600;
 
-/// Blocks before a coinbase output may be spent.
-pub const COINBASE_MATURITY: u32 = 100;
+/// Confirmations a wallet waits before spending a coinbase note (wallet policy).
+///
+/// This is not a consensus rule: CYPHES coinbase outputs are shielded, a
+/// shielded spend does not reveal which note it spends, and Zcash's 100-block
+/// maturity rule (ZIP 213) only covers transparent outputs, which CYPHES does
+/// not have. Waiting protects the miner's own payments from short reorgs.
+pub const WALLET_COINBASE_CONFIRMATIONS: u32 = 100;
 
 /// The block subsidy at `height`, in base units.
 ///

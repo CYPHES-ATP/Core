@@ -7,9 +7,10 @@
 
 [mining]
 internal_miner = true
-# Orchard-only unified address (Zcash regtest encoding until CYPHES HRPs land
-# in the librustzcash fork). Rewards become Ironwood coinbase outputs.
-miner_address = "uregtest1pszqlgxaf5w8mu2yd9uygg8cswp0ec4f7eejqnqc35tztw4tk0sxnt3pym2f3s2872cy2ruuc5n8y9cen5q6ngzlmzu8ztrjesv8zm9j"
+# Ironwood-only address from the PUBLIC devnet seed
+# (`cargo run -p zebra-chain --example cyphes_address -- regtest`).
+# Never send real value to it. Rewards become Ironwood coinbase outputs.
+miner_address = "cyphregtest1gymj99nyn4c9n68u3vcuqlr57p8evnukeqfnt5l3tvnq0na2amv6tz270dwfnzrg8x63yhvskqgalaewgnqy6zts0842s3w2esyrtye0"
 
 [network]
 network = "Regtest"
