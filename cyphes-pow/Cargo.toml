@@ -1,0 +1,28 @@
+[package]
+name = "cyphes-pow"
+version = "0.1.0"
+authors = ["CYPHES-ATP"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.88"
+description = "BeamHash III proof of work for the CYPHES chain: consensus verifier and reference CPU solver"
+publish = false
+
+[features]
+default = []
+# Reference CPU solver. Needs ~8 GiB of RAM per solve; used for devnet mining
+# and differential tests, never by consensus.
+solver = ["dep:rayon"]
+
+[dependencies]
+blake2b_simd = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+
+[[example]]
+name = "solve"
+required-features = ["solver"]

@@ -12,6 +12,8 @@ members = [
         "zebra-utils",
         "tower-batch-control",
         "tower-fallback",
+        "cyphes-pow",
+        "cyphes-params",
 ]
 
 # Use the edition 2021 dependency resolver in the workspace, to match the crates

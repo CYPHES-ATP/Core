@@ -1196,6 +1196,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyphes-params"
+version = "0.1.0"
+dependencies = [
+ "sha2 0.10.9",
+ "uint 0.10.0",
+]
+
+[[package]]
+name = "cyphes-pow"
+version = "0.1.0"
+dependencies = [
+ "blake2b_simd",
+ "hex",
+ "rayon",
+ "sha2 0.10.9",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
