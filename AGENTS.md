@@ -23,9 +23,11 @@ not apply; do not open pull requests against `ZcashFoundation/zebra` from here.
    `cyphes-pow/reference/build.sh`).
 4. **Proof of work is the only issuance.** Nothing may add a premine, fee
    recipient, funding stream or any other path that creates CASH.
-5. **Commit identity.** This project's public GitHub org carries no personal
-   information. Before any commit, `git var GIT_AUTHOR_IDENT` must read
-   `atpprotocol <287507827+atpprotocol@users.noreply.github.com>`.
+5. **Anonymity.** This project publishes no personal information: no names,
+   emails, account IDs, local paths or timezones. Commit only as the
+   `atpprotocol` GitHub account with its GitHub-provided noreply address
+   (check `git var GIT_AUTHOR_IDENT` before every commit), with UTC dates and
+   no co-author or sign-off trailers.
 6. **Never dial Zcash infrastructure.** No Zcash seeders, ports or magic bytes
    in defaults.
 
